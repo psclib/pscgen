@@ -4,6 +4,8 @@ project (pscgen)
 find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
+SET(CMAKE_CXX_FLAGS "-std=c++0x")
+
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 option(BUILD_MATLAB_BINDINGS "Build Matlab bindings" ON)
 #option(BUILD_EXAMPLES "Build examples" ON)

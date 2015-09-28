@@ -2,9 +2,9 @@
 
 uint16_t*** new_dict(const int alpha, const int beta, const int range) {
     uint16_t ***dict = new uint16_t**[alpha];
-    for (int i = 0; i < alpha; ++i) {
+    for (int i = 0; i < alpha; i++) {
         dict[i] = new uint16_t*[range];
-        for (int j = 0; j < range; ++j) {
+        for (int j = 0; j < range; j++) {
             dict[i][j] = new uint16_t[beta];
         }
     }
@@ -12,11 +12,11 @@ uint16_t*** new_dict(const int alpha, const int beta, const int range) {
 }
 
 void delete_dict(uint16_t ***dict, const int alpha, const int range) {
-    for (int i = 0; i < alpha; ++i) {
-        for (int j = 0; j < range; ++j) {
-            delete [] dict[i][j];
+    for (int i = 0; i < alpha; i++) {
+        for (int j = 0; j < range; j++) {
+            delete dict[i][j];
         }
-        delete [] dict[i];
+        delete dict[i];
     }
     delete [] dict;
 }
@@ -53,42 +53,4 @@ void atom_lookup(double *x, uint16_t ***dict, int **idx_arr, const int alpha,
         }
     }
     std::copy(idxs.begin(), idxs.end(), *idx_arr);
-}
-
-
-//read csv from file
-double* read_csv(std::string file, int &rows, int &cols) {
-    std::ifstream data(file.c_str());
-    std::string line;
-    rows = cols = 0;
-
-    while(std::getline(data, line)) {
-        std::stringstream lineStream(line);
-        std::string cell;
-        cols = 0;
-        while(std::getline(lineStream, cell, ',')) {
-            cols++;
-        }
-        rows++;
-    }
-
-    double *ret = new double[rows*cols];
-
-    //rewind file to beginning
-    data.clear();
-    data.seekg(0, data.beg);
-    int i = 0;
-    int j = 0;
-    while(std::getline(data, line)) {
-        std::stringstream lineStream(line);
-        std::string cell;
-        j = 0;
-        while(std::getline(lineStream, cell, ',')) {
-            ret[i*rows + j] = std::stod(cell);
-            j++;
-        }
-        i++;
-    }
-
-  return ret;
 }

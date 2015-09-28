@@ -1,0 +1,19 @@
+#include <iostream>
+#include <stdint.h>
+#include <pscgen/pscgen.h>
+
+int main() {
+    const int alpha = 5;
+    const int beta = 5;
+    const int range = 1 << 16;
+    uint16_t ***iram = new uint16_t**[alpha];
+    for (int i = 0; i < alpha; i++) {
+        iram[i] = new uint16_t*[range];
+        for (int j = 0; j < range; j++) {
+            iram[i][j] = new uint16_t[beta];
+        }
+    }
+
+
+
+}
