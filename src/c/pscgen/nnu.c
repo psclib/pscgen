@@ -1,25 +1,40 @@
-#include "pscgen.h"
+#include "nnu.h"
 
 struct _NNUDictionary {
     int alpha; //number of tables
     int beta;  //width of tables
-    half* buf; //buffer holding dictionary
+    half* tables; //nnu lookup tables
 };
 
-NNUDictionary* new_dict(const int alpha, const int beta)
+NNUDictionary* new_dict(const int alpha, const int beta,
+                        const char *input_csv_path,
+                        const char *delimiters)
 {
+    //Initialze nnu dictionary
     NNUDictionary *dict = malloc(sizeof(NNUDictionary));
-    half *buf = malloc(sizeof(half) * alpha * beta * RANGE_16);
+    half *tables = malloc(sizeof(half) * alpha * beta * RANGE_16);
     dict->alpha = alpha;
     dict->beta = beta;
-    dict->buf = buf;
+    dict->tables = tables;
+
+    //read in input csv file
+    int input_rows, input_cols;
+    double *input_buf;
+    read_csv(input_csv_path, delimiters, &input_rows, &input_cols, &input_buf);
+
+    //get eigen vectors
+
+    //populate nnu tables
+
+    //clean-up
+    free(input_buf);
 
     return dict;
 }
 
 void delete_dict(NNUDictionary *dict)
 {
-    free(dict->buf);
+    free(dict->tables);
     free(dict);
 }
 
