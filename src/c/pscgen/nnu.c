@@ -34,7 +34,7 @@ NNUDictionary* new_dict(const int alpha, const int beta,
 
             int *idxs = d_argsort(c, cols);
             for(k = 0; k < dict->beta; k++) {
-                dict[idx3d(j, i, k, RANGE_16, dict->beta)];
+                dict->tables[idx3d(j, i, k, RANGE_16, dict->beta)] = float_to_half(idxs[k]);
             }
 
             free(idxs);

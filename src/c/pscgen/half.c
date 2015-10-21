@@ -77,4 +77,3 @@ half static float_to_half_I(uint32_t i)
         return s | (e << 10) | (f >> 13);
     }
 }
-
