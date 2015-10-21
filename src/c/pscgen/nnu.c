@@ -1,40 +1,56 @@
 #include "nnu.h"
 
-struct _NNUDictionary {
-    int alpha; //number of tables
-    int beta;  //width of tables
-    half* tables; //nnu lookup tables
-};
-
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path,
                         const char *delimiters)
 {
-    //Initialze nnu dictionary
+    //Initialze NNUDictionary
     NNUDictionary *dict = malloc(sizeof(NNUDictionary));
     half *tables = malloc(sizeof(half) * alpha * beta * RANGE_16);
     dict->alpha = alpha;
     dict->beta = beta;
     dict->tables = tables;
 
-    //read in input csv file
-    int input_rows, input_cols;
-    double *input_buf;
-    read_csv(input_csv_path, delimiters, &input_rows, &input_cols, &input_buf);
+    //read in input dictionary file
+    read_csv(input_csv_path, delimiters, &dict->ldict, &dict->ldict_rows,
+             &dict->ldict_cols);
 
-    //get eigen vectors
+    //get eigen vectors of input dictionary file
+    dict->ldict_vt = deig_vec(dict->ldict, dict->ldict_rows, dict->ldict_cols);
 
     //populate nnu tables
+    int i, j, k;
+    half v;
+    int cols = dict->ldict_cols;
+    double dv;
+    double *c = new_dvec(cols);
+    for(i = 0; i < 1; i++) {
+        v = (half)i;
+        dv = (double)v;
+        for(j = 0; j < dict->alpha; j++) {
+            for(k = 0; k < cols; k++) {
+                 c[k] = fabs(dict->ldict_vt[idx2d(j, k, cols)] - dv);
+            }
 
-    //clean-up
-    free(input_buf);
+            int *idxs = d_argsort(c, cols);
+            for(k = 0; k < dict->beta; k++) {
+                dict[idx3d(j, i, k, RANGE_16, dict->beta)];
+            }
 
+            free(idxs);
+            zero_dvec(c, dict->ldict_cols);
+        }
+    }
+    
+    printf("here\n");
     return dict;
 }
 
 void delete_dict(NNUDictionary *dict)
 {
     free(dict->tables);
+    free(dict->ldict);
+    free(dict->ldict_vt);
     free(dict);
 }
 
@@ -45,11 +61,13 @@ void delete_dict(NNUDictionary *dict)
 /*         v.data_ = dictvalue; */
 /*         double dictdouble = v; */
 /*         for (int j = 0; j < alpha; ++j) { */
+
 /*             std::vector<double> c(cols, 0.0); */
 /*             for (int i = 0; i < cols; ++i) { */
 /*                 double v = vtd[j][i]; */
 /*                 c[i] = std::abs(v - dictdouble); */
 /*             } */
+
 /*             std::vector<size_t> idxs = sort_indexes(c); */
 /*             for (int k = 0; k < beta; ++k) { */
 /*                 dict[j][dictvalue][k] = idxs[k]; */

@@ -1,7 +1,14 @@
-#include "csv.h"
+#include "util.h"
+
+static double* _dvalues;
+int d_argsort_compare(const void* a, const void* b)
+{
+    return  _dvalues[*(int*)b] - _dvalues[*(int*)a];
+}
+
 
 void read_csv(const char *filepath, const char *delimiters,
-              int *rows, int *cols, double **buf)
+              double **buf, int *rows, int *cols)
 {
     int nchars = 10000;
     int nbytes = sizeof(char) * nchars;
@@ -48,6 +55,56 @@ void read_csv(const char *filepath, const char *delimiters,
     free(line);
 }
 
+inline double* new_dvec(int N)
+{
+    int i;
+    double *vec = malloc(sizeof(double) * N);
+
+    for(i = 0; i < N; i++) {
+        vec[i] = 0.0;
+    }
+
+    return vec;
+}
+
+inline void zero_dvec(double *vec, int N)
+{
+    int i;
+
+    for(i = 0; i < N; i++) {
+        vec[i] = 0.0;
+    }
+}
+
+
+inline int idx2d(int i, int j, int cols)
+{
+    return i * cols + j;
+}
+
+
+inline int idx3d(int i, int j, int k, int rows, int cols) {
+    return i * rows * cols + j * rows + k;
+}
+
+int* d_argsort(double* vec, int N)
+{
+    int i;
+
+    //create idx array in sorted order
+    int *idxs = malloc(sizeof(int) * N);
+    for(i = 0; i < N; i++) {
+        idxs[i] = i;
+    }
+
+    //set scoped pointer to vec
+    _dvalues = vec;
+    
+    //perform qsort
+    qsort(idxs, N, sizeof(int), d_argsort_compare);
+    
+    return idxs;
+}
 
 void print_mat(double *buf, int rows, int cols)
 {
@@ -56,7 +113,8 @@ void print_mat(double *buf, int rows, int cols)
         for(j = 0; j < cols-1; j++) {
             printf("%2.2f, ", buf[i*cols + j]);
         }
-        printf("%2.2f", buf[i*cols + j]);
+        printf("%2.2f", buf[idx2d(i, j, cols)]);
         printf("\n");
+    
     }
 }
