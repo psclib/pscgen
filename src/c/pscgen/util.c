@@ -1,9 +1,12 @@
 #include "util.h"
 
 static double* _dvalues;
+
 int d_argsort_compare(const void* a, const void* b)
 {
-    return  _dvalues[*(int*)b] - _dvalues[*(int*)a];
+    if(_dvalues[*(int*)b] > _dvalues[*(int*)a]) return 1;
+    if(_dvalues[*(int*)b] < _dvalues[*(int*)a]) return -1;
+    return 0;
 }
 
 
@@ -99,12 +102,38 @@ int* d_argsort(double* vec, int N)
 
     //set scoped pointer to vec
     _dvalues = vec;
-    
+
     //perform qsort
     qsort(idxs, N, sizeof(int), d_argsort_compare);
-    
+
     return idxs;
 }
+
+
+void d_transpose_inplace(double *mat, int rows, int cols)
+{
+    int start;
+    for(start = 0; start <= cols * rows - 1; ++start) {
+        int next = start;
+        int i = 0;
+
+        do {
+            ++i;
+            next = (next % rows) * cols + next / rows;
+        } while (next > start);
+
+    if (next >= start && i != 1) {
+        const double tmp = mat[start];
+        next = start;
+        do {
+            i = (next % rows) * cols + next / rows;
+            mat[next] = (i == start) ? tmp : mat[i];
+            next = i;
+        } while (next > start);
+      }
+    }
+}
+
 
 void print_mat(double *buf, int rows, int cols)
 {

@@ -1,4 +1,5 @@
 #include "nnu.h"
+#include <inttypes.h>
 
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path,
@@ -15,34 +16,56 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     read_csv(input_csv_path, delimiters, &dict->ldict, &dict->ldict_rows,
              &dict->ldict_cols);
 
-    //get eigen vectors of input dictionary file
-    dict->ldict_vt = deig_vec(dict->ldict, dict->ldict_rows, dict->ldict_cols);
 
-    //populate nnu tables
-    int i, j, k;
-    half v;
+    //make easier to read
+    int rows = dict->ldict_rows;
     int cols = dict->ldict_cols;
-    double dv;
-    double *c = new_dvec(cols);
-    for(i = 0; i < 1; i++) {
-        v = (half)i;
-        dv = (double)v;
+
+    //get eigen vectors of input dictionary file
+    dict->ldict_v = deig_vec(dict->ldict, rows, cols);
+
+    printf("%f\n", dict->ldict_v[idx2d(0, 0, rows)]);
+    printf("%f\n", dict->ldict_v[idx2d(0, 1, rows)]);
+    printf("%f\n", dict->ldict_v[idx2d(0, 2, rows)]);
+    printf("%f\n", dict->ldict_v[idx2d(0, 3, rows)]);
+    printf("%f\n", dict->ldict_v[idx2d(0, 4, rows)]);
+    exit(1);
+    /* printf("%f\n", dict->ldict[idx2d(5, 4, cols)]); */
+
+    double *vtd = dmm_prod(dict->ldict_v, dict->ldict, rows, rows, rows, cols);
+
+    printf("%f\n", vtd[idx2d(5, 4, cols)]);
+
+    
+    //populate nnu tables
+    uint32_t i;
+    int j, k, table_idx;
+    half v;
+    float dv;
+    double *c = new_dvec(rows);
+    for(i = 0; i < RANGE_16-1; i++) {
+        dv = half_to_float(i);
         for(j = 0; j < dict->alpha; j++) {
-            for(k = 0; k < cols; k++) {
-                 c[k] = fabs(dict->ldict_vt[idx2d(j, k, cols)] - dv);
+            for(k = 0; k < rows; k++) {
+                c[k] = fabs(dict->ldict_v[idx2d(j, k, rows)] - dv);
+                if(i == 2 && j == 3 && k == 4)
+                   printf("%g, %g, %g\n", dict->ldict_v[idx2d(j, k, rows)], dv, c[k]);
             }
 
-            int *idxs = d_argsort(c, cols);
+            int *idxs = d_argsort(c, rows);
             for(k = 0; k < dict->beta; k++) {
-                dict->tables[idx3d(j, i, k, RANGE_16, dict->beta)] = float_to_half(idxs[k]);
+                table_idx = idx3d(j, i, k, dict->alpha, RANGE_16);
+                dict->tables[table_idx] = idxs[k];
             }
 
             free(idxs);
-            zero_dvec(c, dict->ldict_cols);
+            zero_dvec(c, rows);
         }
     }
+
+    uint16_t x = dict->tables[idx3d(2,3,4, dict->alpha, RANGE_16)];
+    printf("%d\n", x);
     
-    printf("here\n");
     return dict;
 }
 
@@ -50,7 +73,7 @@ void delete_dict(NNUDictionary *dict)
 {
     free(dict->tables);
     free(dict->ldict);
-    free(dict->ldict_vt);
+    free(dict->ldict_v);
     free(dict);
 }
 

@@ -9,17 +9,18 @@
 #include "linalg/linalg.h"
 
 #define RANGE_16  1 << 16
+#define RANGE_32 1 << 32
 
-/* NNU dictionary (half float implementation) */
+/* NNU dictionary (uint16 implementation) */
 typedef struct NNUDictionary {
     int alpha; //number of tables
     int beta;  //width of tables
-    half* tables; //nnu lookup tables
+    uint16_t* tables; //nnu lookup tables
 
     double* ldict; //learned dictionary
     int ldict_rows; //rows in ldict
     int ldict_cols; //cols in ldict
-    double* ldict_vt; //eigen vectors of ldict
+    double* ldict_v; //eigen vectors of ldict
 } NNUDictionary;
 
 NNUDictionary* new_dict(const int alpha, const int beta,
