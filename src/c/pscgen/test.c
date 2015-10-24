@@ -12,27 +12,17 @@ int main(int argc, char *argv[])
     NNUDictionary *dict = new_dict(alpha, beta, "test.csv", ",");
     delete_dict(dict);
 
-    /* unsigned long long int i; */
-    /* float f; */
-    /* int vals = 0; */
+    /* double *A; */
+    /* int rA, cA, rB, cB; */
+    /* read_csv("test2.csv", ",", &A, &rA, &cA); */
+    /* read_csv("vec2.csv", ",", &B, &rB, &cB); */
 
-    /* /1* for(i = 0; i < 4294967295; i++) { *1/ */
-    /* /1*     f = *(float*)(&i); *1/ */
-    /* /1*     if(f > 0 && f < 1){ *1/ */
-    /* /1*         vals++; *1/ */
-    /* /1*         /2* printf("%f\n", f); *2/ *1/ */
-    /* /1*     } *1/ */
-    /* /1* } *1/ */
+    /* double *C = dmm_prod(A, B, rA, cA, rB, cB); */
+    /* double *B = d_trim(A, rA, cA, 1, 4); */
 
-    /* for(i = 0; i < 65535; i++) { */
-    /*     unsigned int y = __gnu_h2f_ieee(i); */
-    /*     float z = *(float*)(&y); */
-    /*     z = half_to_float(i); */
-    /*     if(z > 0 && z < 1){ */ 
-    /*         vals++; */
-    /*         printf("%g\n", z); */
-    /*     } */
-    /* } */
+    /* print_mat(A, rA, cA); */
+    /* print_mat(B, 1, 4); */
+    /* print_mat(C, rA, cB); */
 
     return 0;
 }

@@ -26,6 +26,6 @@ int dgesvd_(char *jobz, char *jobvt, int *m, int *n, double *A, int *lda,
 double* dmv_prod(double *A, double *x, int rows, int cols);
 double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
                  int B_cols);
-double* deig_vec(double *A, int rows, int cols);
+double* deig_Vt(double *A, int rows, int cols);
 
 #endif /* LINALG_H */

@@ -4,6 +4,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <limits.h>
 #include "half.h"
 #include "util.h"
 #include "linalg/linalg.h"
@@ -17,10 +18,10 @@ typedef struct NNUDictionary {
     int beta;  //width of tables
     uint16_t* tables; //nnu lookup tables
 
-    double* ldict; //learned dictionary
-    int ldict_rows; //rows in ldict
-    int ldict_cols; //cols in ldict
-    double* ldict_v; //eigen vectors of ldict
+    double* D; //learned dictionary
+    int D_rows; //rows in ldict
+    int D_cols; //cols in ldict
+    double* VD; //vtd
 } NNUDictionary;
 
 NNUDictionary* new_dict(const int alpha, const int beta,

@@ -35,8 +35,7 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
     int i, j;
     for(i = 0; i < A_rows; i++) {
         for(j = 0; j < B_cols; j++) {
-            /* printf("%d,%d\n", i, j); */
-            C[idx2d(i, j, B_cols)] = 0.0;
+            C[idx2d(i, j, A_rows)] = 0.0;
         }
     }
 
@@ -50,8 +49,8 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
 }
 
 
-/* Returns the eigenvectors of a matrix A */
-double* deig_vec(double *input, int rows, int cols) {
+/* Returns Vt of a matrix A */
+double* deig_Vt(double *input, int rows, int cols) {
     int info, lwork;
     double wkopt;
     double *work;
@@ -63,19 +62,19 @@ double* deig_vec(double *input, int rows, int cols) {
         A[i] = input[i];
 
     double *S = malloc(sizeof(double) * MIN(rows, cols));
-    double *U = malloc(sizeof(double) * cols * cols);
-    double *VT = malloc(sizeof(double) * rows * rows);
+    double *U = malloc(sizeof(double) * rows * rows);
+    double *VT = malloc(sizeof(double) * cols * cols);
 
     /* Query and allocate the optimal workspace */
     lwork = -1;
-    dgesvd_("All", "All", &cols, &rows, A, &cols, S, U, &cols, VT,
-            &rows, &wkopt, &lwork, &info);
+    dgesvd_("All", "All", &rows, &cols, A, &rows, S, U, &rows, VT,
+            &cols, &wkopt, &lwork, &info);
     lwork = (int)wkopt;
     work = malloc(sizeof(double) * lwork);
 
     /* Compute SVD */
-    dgesvd_("All", "All", &cols, &rows, A, &cols, S, U, &cols, VT,
-            &rows, work, &lwork, &info);
+    dgesvd_("All", "All", &rows, &cols, A, &rows, S, U, &rows, VT,
+            &cols, work, &lwork, &info);
 
     /* Check for convergence */
     if(info > 0) {
@@ -88,9 +87,6 @@ double* deig_vec(double *input, int rows, int cols) {
     free(work);
     free(S);
     free(U);
-
-    //transpose vt to v
-    /* d_transpose_inplace(VT, rows, rows); */
 
     return VT;
 }
