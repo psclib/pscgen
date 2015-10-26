@@ -27,10 +27,10 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     
     //populate nnu tables
     int i, j, k, table_idx;
-    half v;
     float dv;
     double *c = new_dvec(cols);
     int *idxs = malloc(sizeof(int) * cols);
+
     for(i = 0; i < USHRT_MAX; i++) {
         dv = half_to_float(i);
         for(j = 0; j < alpha; j++) {
@@ -42,6 +42,7 @@ NNUDictionary* new_dict(const int alpha, const int beta,
             for(k = 0; k < beta; k++) {
                 table_idx = idx3d(j, i, k, alpha, USHRT_MAX);
                 tables[table_idx] = idxs[k];
+                printf("%d", idxs[k]);
             }
 
             zero_dvec(c, cols);
@@ -53,12 +54,14 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     dict->tables = tables;
     dict->alpha = alpha;
     dict->D = D;
+    dict->D_rows = rows;
+    dict->D_cols = cols;
     dict->VD = VD;
+    dict->Vt = Vt;
 
     //clean-up
     free(Dt);
     free(Vt_full);
-    free(Vt);
     free(idxs);
     free(c);
 
@@ -69,79 +72,71 @@ void delete_dict(NNUDictionary *dict)
 {
     free(dict->tables);
     free(dict->D);
+    free(dict->Vt);
     free(dict->VD);
     free(dict);
 }
 
-/* void build_dict(double **vtd, uint16_t ***dict, const int alpha, */
-/*                 const int beta, const int cols, const int range) { */
-/*     for (uint32_t dictvalue = 0; dictvalue < range; ++dictvalue) { */
-/*         half v; */
-/*         v.data_ = dictvalue; */
-/*         double dictdouble = v; */
-/*         for (int j = 0; j < alpha; ++j) { */
-
-/*             std::vector<double> c(cols, 0.0); */
-/*             for (int i = 0; i < cols; ++i) { */
-/*                 double v = vtd[j][i]; */
-/*                 c[i] = std::abs(v - dictdouble); */
-/*             } */
-
-/*             std::vector<size_t> idxs = sort_indexes(c); */
-/*             for (int k = 0; k < beta; ++k) { */
-/*                 dict[j][dictvalue][k] = idxs[k]; */
-/*             } */
-/*         } */
-/*     } */
-/* } */
+double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
+{
+    int i, j, maxidx;
+    int alpha_beta = dict->alpha * dict->beta;
+    int D_rows = dict->D_rows;
+    int D_cols = dict->D_cols;
+    int alpha = dict->alpha;
+    int beta = dict->beta;
+    double tmpcoeff;
+    double maxcoeff = 0.0;
 
 
-/* void atom_lookup(double *x, uint16_t ***dict, int **idx_arr, const int alpha, */
-/*                  const int beta) { */
-/*     std::set<int> idxs; */
-/*     for (int j = 0; j < alpha; ++j) { */
-/*         uint16_t *beta_neighbors = dict[alpha][half(x[j]).data_]; */
-/*         for (int k = 0; k < beta; ++k) { */
-/*             idxs.insert(beta_neighbors[k]); */
-/*         } */
-/*     } */
-/*     std::copy(idxs.begin(), idxs.end(), *idx_arr); */
-/* } */
+    unsigned int *atom_idxs = (int *)calloc(alpha_beta / 8 + 1,
+                                            sizeof(unsigned int));
+    double *D = dict->D;
+    double *ret = new_dvec(X_cols);
+    double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
+                          X_rows, X_cols); 
 
+	for(i = 0; i < X_cols; ++i) {
+		atom_lookup(dict->tables, d_viewcol(VX, i, alpha), atom_idxs,
+                    alpha, beta);
+		for(j = 0; j < alpha_beta; j++) {
+            //skip missing values
+            if(atom_idxs[j] == 0) {
+                continue;
+            }
 
-/* //read csv from file */
-/* double* read_csv(std::string file, int &rows, int &cols) { */
-/*     std::ifstream data(file.c_str()); */
-/*     std::string line; */
-/*     rows = cols = 0; */
+            tmpcoeff = d_dot(d_viewcol(X, i, X_rows),
+                             d_viewcol(D, j, D_rows), D_rows);
+			if(fabs(tmpcoeff) > maxcoeff) {
+				maxcoeff = tmpcoeff;
+				maxidx = j;
+			}
+		}
 
-/*     while(std::getline(data, line)) { */
-/*         std::stringstream lineStream(line); */
-/*         std::string cell; */
-/*         cols = 0; */
-/*         while(std::getline(lineStream, cell, ',')) { */
-/*             cols++; */
-/*         } */
-/*         rows++; */
-/*     } */
+		ret[i] = maxidx;
+		maxcoeff = 0.0;
+	}
 
-/*     double *ret = new double[rows*cols]; */
+    //clean-up
+    free(VX);
+    free(atom_idxs);
 
-/*     //rewind file to beginning */
-/*     data.clear(); */
-/*     data.seekg(0, data.beg); */
-/*     int i = 0; */
-/*     int j = 0; */
-/*     while(std::getline(data, line)) { */
-/*         std::stringstream lineStream(line); */
-/*         std::string cell; */
-/*         j = 0; */
-/*         while(std::getline(lineStream, cell, ',')) { */
-/*             ret[i*rows + j] = std::stod(cell); */
-/*             j++; */
-/*         } */
-/*         i++; */
-/*     } */
+	return ret;
+}
 
-/*   return ret; */
-/* } */
+inline void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
+                        int alpha, int beta)
+{
+    int i, k, table_idx;
+    uint16_t *beta_neighbors;
+    
+    for(i = 0; i < alpha; i++) {
+        //TODO:Ensure column is last dim
+        table_idx = idx3d(i, (int)float_to_half((float)x[i]), 0,
+                          alpha, USHRT_MAX);
+        beta_neighbors = &tables[table_idx];
+        for(k = 0; k < beta; ++k) {
+            bit_set_idx(atom_idxs, beta_neighbors[k]);
+        }
+    }
+}

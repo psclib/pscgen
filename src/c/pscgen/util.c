@@ -109,6 +109,10 @@ void d_argsort(double *vec, int *idxs, int N)
     qsort(idxs, N, sizeof(int), d_argsort_compare);
 }
 
+inline void bit_set_idx(unsigned int *bitarray, size_t idx)
+{
+    bitarray[idx / WORD_BITS] |= (1 << (idx % WORD_BITS));
+}
 
 double* d_transpose(double *mat, int rows, int cols)
 {
@@ -134,6 +138,12 @@ double* d_trim(double* mat, int rows, int cols, int new_rows, int new_cols)
     }
 
     return ret_mat;
+}
+
+double* d_viewcol(double *mat, int col, int rows)
+{
+    printf("%d\n", idx2d(0, col, rows));
+    return mat + idx2d(0, col, rows);
 }
 
 void print_mat(double *buf, int rows, int cols)

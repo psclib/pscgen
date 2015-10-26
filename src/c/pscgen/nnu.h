@@ -7,6 +7,8 @@
 #include <limits.h>
 #include "half.h"
 #include "util.h"
+#include "hashset.h"
+#include "hashset_itr.h"
 #include "linalg/linalg.h"
 
 #define RANGE_16  1 << 16
@@ -21,18 +23,15 @@ typedef struct NNUDictionary {
     double* D; //learned dictionary
     int D_rows; //rows in ldict
     int D_cols; //cols in ldict
-    double* VD; //vtd
+    double* Vt; //Vt from SVD(D) -- taking alpha columns
+    double* VD; //dot(Vt, d)
 } NNUDictionary;
 
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path, const char *delimiters);
-/* NNUDictionary* new_dict(const int alpha, const int beta, double *input_buf, */
-/*                         int input_rows, int input_cols); */
 void delete_dict(NNUDictionary *dict);
-
-
-void atom_lookup(double *x, uint16_t ***iram, int **idx_arr,
-                 const int alpha, const int beta);
-
+double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+inline void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
+                        int alpha, int beta);
 
 #endif /*NNU_H*/

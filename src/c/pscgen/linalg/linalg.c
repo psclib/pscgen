@@ -48,9 +48,15 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
     return C;
 }
 
+double d_dot(double *X, double *Y, int N)
+{
+    int incx = 1, incy = 1;
+    return ddot_(&N, X, &incx, Y, &incy);
+}
 
 /* Returns Vt of a matrix A */
-double* deig_Vt(double *input, int rows, int cols) {
+double* deig_Vt(double *input, int rows, int cols)
+{
     int info, lwork;
     double wkopt;
     double *work;
