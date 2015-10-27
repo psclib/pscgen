@@ -42,7 +42,6 @@ NNUDictionary* new_dict(const int alpha, const int beta,
             for(k = 0; k < beta; k++) {
                 table_idx = idx3d(j, i, k, alpha, USHRT_MAX);
                 tables[table_idx] = idxs[k];
-                printf("%d", idxs[k]);
             }
 
             zero_dvec(c, cols);
@@ -88,9 +87,7 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     double tmpcoeff;
     double maxcoeff = 0.0;
 
-
-    unsigned int *atom_idxs = (int *)calloc(alpha_beta / 8 + 1,
-                                            sizeof(unsigned int));
+    word_t *atom_idxs = bit_vector(alpha_beta);
     double *D = dict->D;
     double *ret = new_dvec(X_cols);
     double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
@@ -101,9 +98,10 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
                     alpha, beta);
 		for(j = 0; j < alpha_beta; j++) {
             //skip missing values
-            if(atom_idxs[j] == 0) {
+            if(get_bit(atom_idxs, j) == 0) {
                 continue;
             }
+            printf("%d\n", j);
 
             tmpcoeff = d_dot(d_viewcol(X, i, X_rows),
                              d_viewcol(D, j, D_rows), D_rows);
@@ -112,6 +110,9 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 				maxidx = j;
 			}
 		}
+
+        printf("---\n");
+        clear_all_bit(atom_idxs, alpha_beta);
 
 		ret[i] = maxidx;
 		maxcoeff = 0.0;
@@ -124,7 +125,7 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 	return ret;
 }
 
-inline void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
+inline void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
                         int alpha, int beta)
 {
     int i, k, table_idx;
@@ -135,8 +136,11 @@ inline void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
         table_idx = idx3d(i, (int)float_to_half((float)x[i]), 0,
                           alpha, USHRT_MAX);
         beta_neighbors = &tables[table_idx];
+        printf("beta:%d\n", beta);
         for(k = 0; k < beta; ++k) {
-            bit_set_idx(atom_idxs, beta_neighbors[k]);
+            printf("%d\n", beta_neighbors[k]);
+            set_bit(atom_idxs, beta_neighbors[k]);
         }
+        exit(1);
     }
 }

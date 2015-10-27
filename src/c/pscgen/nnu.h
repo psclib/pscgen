@@ -7,8 +7,6 @@
 #include <limits.h>
 #include "half.h"
 #include "util.h"
-#include "hashset.h"
-#include "hashset_itr.h"
 #include "linalg/linalg.h"
 
 #define RANGE_16  1 << 16

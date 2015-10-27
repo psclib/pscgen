@@ -4,12 +4,22 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
-#define WORD_BITS (8 * sizeof(unsigned int))
 
+typedef uint32_t word_t;
+enum { WORD_SIZE = sizeof(word_t) * 8 };
 
+//bit-set functions
+word_t* bit_vector(int N);
+inline int bindex(int b);
+inline int boffset(int b);
+inline void set_bit(word_t *data, int b);
+inline void clear_bit(word_t *data, int b);
+inline int get_bit(word_t *data, int b);
+inline void clear_all_bit(word_t *data, int N);
 
 void read_csv(const char *filepath, const char *delimiters, double **buf,
               int *rows, int* cols);

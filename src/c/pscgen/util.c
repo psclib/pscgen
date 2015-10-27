@@ -109,9 +109,40 @@ void d_argsort(double *vec, int *idxs, int N)
     qsort(idxs, N, sizeof(int), d_argsort_compare);
 }
 
-inline void bit_set_idx(unsigned int *bitarray, size_t idx)
+
+//bit-set fuctions
+word_t* bit_vector(int N)
 {
-    bitarray[idx / WORD_BITS] |= (1 << (idx % WORD_BITS));
+    return calloc(N / 32 + 1, sizeof(word_t));
+}
+
+inline int bindex(int b)
+{
+    return b / WORD_SIZE;
+}
+inline int boffset(int b)
+{
+    return b % WORD_SIZE;
+}
+
+inline void set_bit(word_t *data, int b)
+{ 
+    data[bindex(b)] |= 1 << (boffset(b)); 
+}
+
+inline void clear_bit(word_t *data, int b)
+{ 
+    data[bindex(b)] &= ~(1 << (boffset(b)));
+}
+
+inline int get_bit(word_t *data, int b)
+{ 
+    return data[bindex(b)] & (1 << (boffset(b)));
+}
+
+inline void clear_all_bit(word_t *data, int N)
+{
+    memset(data, 0, (N/32 + 1) * sizeof(word_t));
 }
 
 double* d_transpose(double *mat, int rows, int cols)
@@ -142,7 +173,6 @@ double* d_trim(double* mat, int rows, int cols, int new_rows, int new_cols)
 
 double* d_viewcol(double *mat, int col, int rows)
 {
-    printf("%d\n", idx2d(0, col, rows));
     return mat + idx2d(0, col, rows);
 }
 
