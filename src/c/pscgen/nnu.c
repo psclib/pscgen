@@ -40,7 +40,7 @@ NNUDictionary* new_dict(const int alpha, const int beta,
 
             d_argsort(c, idxs, cols);
             for(k = 0; k < beta; k++) {
-                table_idx = idx3d(j, i, k, alpha, USHRT_MAX);
+                table_idx = idx3d(j, i, k, beta, USHRT_MAX);
                 tables[table_idx] = idxs[k];
             }
 
@@ -52,6 +52,7 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     NNUDictionary *dict = malloc(sizeof(NNUDictionary));
     dict->tables = tables;
     dict->alpha = alpha;
+    dict->beta = beta;
     dict->D = D;
     dict->D_rows = rows;
     dict->D_cols = cols;
@@ -87,7 +88,8 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     double tmpcoeff;
     double maxcoeff = 0.0;
 
-    word_t *atom_idxs = bit_vector(alpha_beta);
+    word_t *atom_idxs = bit_vector(D_cols);
+
     double *D = dict->D;
     double *ret = new_dvec(X_cols);
     double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
@@ -96,13 +98,13 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 	for(i = 0; i < X_cols; ++i) {
 		atom_lookup(dict->tables, d_viewcol(VX, i, alpha), atom_idxs,
                     alpha, beta);
-		for(j = 0; j < alpha_beta; j++) {
-            //skip missing values
+
+		for(j = 0; j < D_cols; j++) {
+            //skip unselected values
             if(get_bit(atom_idxs, j) == 0) {
                 continue;
             }
-            printf("%d\n", j);
-
+            
             tmpcoeff = d_dot(d_viewcol(X, i, X_rows),
                              d_viewcol(D, j, D_rows), D_rows);
 			if(fabs(tmpcoeff) > maxcoeff) {
@@ -111,11 +113,9 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 			}
 		}
 
-        printf("---\n");
-        clear_all_bit(atom_idxs, alpha_beta);
-
 		ret[i] = maxidx;
 		maxcoeff = 0.0;
+        clear_all_bit(atom_idxs, D_rows);
 	}
 
     //clean-up
@@ -132,15 +132,11 @@ inline void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
     uint16_t *beta_neighbors;
     
     for(i = 0; i < alpha; i++) {
-        //TODO:Ensure column is last dim
         table_idx = idx3d(i, (int)float_to_half((float)x[i]), 0,
-                          alpha, USHRT_MAX);
+                          beta, USHRT_MAX);
         beta_neighbors = &tables[table_idx];
-        printf("beta:%d\n", beta);
         for(k = 0; k < beta; ++k) {
-            printf("%d\n", beta_neighbors[k]);
             set_bit(atom_idxs, beta_neighbors[k]);
         }
-        exit(1);
     }
 }

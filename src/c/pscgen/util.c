@@ -13,7 +13,7 @@ int d_argsort_compare(const void* a, const void* b)
 void read_csv(const char *filepath, const char *delimiters,
               double **buf, int *rows, int *cols)
 {
-    int nchars = 10000;
+    int nchars = 10000000;
     int nbytes = sizeof(char) * nchars;
     int idx = 0;
     FILE *fp = fopen(filepath, "r");
