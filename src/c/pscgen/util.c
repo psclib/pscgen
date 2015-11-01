@@ -181,7 +181,7 @@ void print_mat(double *buf, int rows, int cols)
     int i, j;
     for(i = 0; i < rows; i++) {
         for(j = 0; j < cols; j++) {
-            printf("%2.2f, ", buf[idx2d(i, j, rows)]);
+            printf("%2.6f, ", buf[idx2d(i, j, rows)]);
         }
         printf("\n");
     

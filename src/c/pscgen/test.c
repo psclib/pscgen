@@ -7,6 +7,7 @@
 #include "util.h"
 #include "linalg/linalg.h"
 
+
 int main(int argc, char *argv[])
 {
     time_t start, end;
@@ -16,23 +17,18 @@ int main(int argc, char *argv[])
     double *A;
     int rA, cA;
 
-    time(&start);
-    NNUDictionary *dict = new_dict(alpha, beta, "test.csv", ",");
-    time(&end);
+    /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/code/notredame_small.csv", ","); */
+    /* NNUDictionary *dict = new_dict(alpha, beta, "test.csv", ","); */
+    /* save_dict("dict.nnu", dict); */
 
-    printf("%.5f secs for training\n", difftime(end, start));
-    read_csv("nnutest/large_test.csv", ",", &A, &rA, &cA);
-    printf("%d, %d\n", rA, cA);
 
-    time(&start);
-    double *ret = nnu(dict, A, rA, cA);
-    time(&end);
-
-    printf("%.5f secs for nnu\n", difftime(end, start));
-    /* print_mat(ret, cA, 1); */
+    NNUDictionary *dict = load_dict("dict.nnu");
+    /* read_csv("nnutest/large_test.csv", ",", &A, &rA, &cA); */
+    read_csv("/home/brad/code/notredame_medium.csv", ",", &A, &rA, &cA);
     /* print_mat(A, rA, cA); */
-    /* print_mat(B, 1, 4); */
-    /* print_mat(C, rA, cB); */
+    double *ret = nnu(dict, A, rA, cA);
+
+    /* print_mat(ret, 1, cA); */
 
     //clean-up
     delete_dict(dict);

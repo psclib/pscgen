@@ -68,6 +68,45 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     return dict;
 }
 
+void save_dict(char *filepath, NNUDictionary *dict)
+{
+    FILE *fp = fopen(filepath, "w+");
+    fwrite(&dict->alpha, sizeof(int), 1, fp);
+    fwrite(&dict->beta, sizeof(int), 1, fp);
+    fwrite(dict->tables, sizeof(uint16_t),
+           dict->alpha * dict->beta * USHRT_MAX, fp);
+    fwrite(&dict->D_rows, sizeof(int), 1, fp);
+    fwrite(&dict->D_cols, sizeof(int), 1, fp);
+    fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
+    fwrite(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
+    fwrite(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
+    fclose(fp);
+}
+
+NNUDictionary* load_dict(char *filepath)
+{
+    NNUDictionary *dict = malloc(sizeof(NNUDictionary));
+    FILE *fp = fopen(filepath, "r");
+    fread(&dict->alpha, sizeof(int), 1, fp);
+    fread(&dict->beta, sizeof(int), 1, fp);
+    dict->tables = malloc(sizeof(uint16_t) * dict->alpha *
+                          dict->beta * USHRT_MAX);
+    fread(dict->tables, sizeof(uint16_t),
+          dict->alpha * dict->beta * USHRT_MAX, fp);
+    fread(&dict->D_rows, sizeof(int), 1, fp);
+    fread(&dict->D_cols, sizeof(int), 1, fp);
+    dict->D = malloc(sizeof(double) * dict->D_rows * dict->D_cols);
+    dict->Vt = malloc(sizeof(double) * dict->alpha * dict->D_rows);
+    dict->VD = malloc(sizeof(double) * dict->alpha * dict->D_cols);
+    fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
+    fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
+    fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
+    fclose(fp);
+
+    return dict;
+}
+
+
 void delete_dict(NNUDictionary *dict)
 {
     free(dict->tables);
@@ -115,7 +154,7 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 
 		ret[i] = maxidx;
 		maxcoeff = 0.0;
-        clear_all_bit(atom_idxs, D_rows);
+        clear_all_bit(atom_idxs, D_cols);
 	}
 
     //clean-up
@@ -125,14 +164,16 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 	return ret;
 }
 
-inline void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
+void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
                         int alpha, int beta)
 {
     int i, k, table_idx;
     uint16_t *beta_neighbors;
+    uint16_t t;
     
     for(i = 0; i < alpha; i++) {
-        table_idx = idx3d(i, (int)float_to_half((float)x[i]), 0,
+        t = float_to_half(x[i]);
+        table_idx = idx3d(i, float_to_half(x[i]), 0,
                           beta, USHRT_MAX);
         beta_neighbors = &tables[table_idx];
         for(k = 0; k < beta; ++k) {
