@@ -1,6 +1,7 @@
 #include "nnu.h"
 #include <inttypes.h>
 
+
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path,
                         const char *delimiters)
@@ -134,6 +135,8 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
                           X_rows, X_cols); 
 
+    print_mat(X, X_rows, X_cols);
+
 	for(i = 0; i < X_cols; ++i) {
 		atom_lookup(dict->tables, d_viewcol(VX, i, alpha), atom_idxs,
                     alpha, beta);
@@ -165,14 +168,13 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 }
 
 void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
-                        int alpha, int beta)
+                 int alpha, int beta)
 {
     int i, k, table_idx;
     uint16_t *beta_neighbors;
     uint16_t t;
     
     for(i = 0; i < alpha; i++) {
-        t = float_to_half(x[i]);
         table_idx = idx3d(i, float_to_half(x[i]), 0,
                           beta, USHRT_MAX);
         beta_neighbors = &tables[table_idx];

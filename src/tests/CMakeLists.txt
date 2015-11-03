@@ -1,3 +1,5 @@
-add_executable(pnnu_test pnnu_test.cpp)
+include_directories(${CMAKE_SOURCE_DIR}/src/c/pscgen)
 
-target_link_libraries(pnnu_test pscgen)
+add_executable(pscgen_test pscgen_test.c)
+
+target_link_libraries(pscgen_test pscgen_shared)
