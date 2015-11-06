@@ -1,14 +1,13 @@
 #include "nnu.h"
 #include <inttypes.h>
 
-
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path,
                         const char *delimiters)
 {
     //init variables
     uint16_t *tables = malloc(sizeof(uint16_t) * alpha * beta * USHRT_MAX);
-    double *D, *Dt, *Vt, *Vt_full, *VD;
+    double *D, *Dt, *Vt, *Vt_full, *VD, *U, *S;
     int rows, cols;
 
     //read in input dictionary file
@@ -18,7 +17,11 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     Dt = d_transpose(D, rows, cols);
 
     //get eigen vectors of input dictionary file
-    Vt_full = deig_Vt(Dt, cols, rows);
+    d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
+
+    //compute scaling values for beta
+    double *s_values = d_viewcol(S, 0, cols);
+    int *beta_scale = compute_beta_scale(s_values, alpha, beta);
 
     //trim to top alpha vectors
     Vt = d_trim(Vt_full, rows, rows, alpha, rows);
@@ -59,9 +62,12 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     dict->D_cols = cols;
     dict->VD = VD;
     dict->Vt = Vt;
+    dict->beta_scale = beta_scale;
 
     //clean-up
     free(Dt);
+    free(U);
+    free(S);
     free(Vt_full);
     free(idxs);
     free(c);
@@ -81,6 +87,7 @@ void save_dict(char *filepath, NNUDictionary *dict)
     fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
     fwrite(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
     fwrite(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
+    fwrite(dict->beta_scale, sizeof(int), dict->alpha, fp);
     fclose(fp);
 }
 
@@ -102,6 +109,7 @@ NNUDictionary* load_dict(char *filepath)
     fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
     fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
     fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
+    fread(dict->beta_scale, sizeof(int), dict->alpha, fp);
     fclose(fp);
 
     return dict;
@@ -114,10 +122,12 @@ void delete_dict(NNUDictionary *dict)
     free(dict->D);
     free(dict->Vt);
     free(dict->VD);
+    free(dict->beta_scale);
     free(dict);
 }
 
-double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
+double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
+            double *avg_ab)
 {
     int i, j, maxidx;
     int alpha_beta = dict->alpha * dict->beta;
@@ -135,17 +145,19 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
                           X_rows, X_cols); 
 
-    print_mat(X, X_rows, X_cols);
+
+    int total_ab = 0;
 
 	for(i = 0; i < X_cols; ++i) {
 		atom_lookup(dict->tables, d_viewcol(VX, i, alpha), atom_idxs,
-                    alpha, beta);
+                    alpha, beta, dict->beta_scale);
 
 		for(j = 0; j < D_cols; j++) {
             //skip unselected values
             if(get_bit(atom_idxs, j) == 0) {
                 continue;
             }
+            total_ab++;
             
             tmpcoeff = d_dot(d_viewcol(X, i, X_rows),
                              d_viewcol(D, j, D_rows), D_rows);
@@ -164,13 +176,15 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     free(VX);
     free(atom_idxs);
 
+    *avg_ab = total_ab / (double)X_cols;
+
 	return ret;
 }
 
 void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
-                 int alpha, int beta)
+                 int alpha, int beta, int *beta_scale)
 {
-    int i, k, table_idx;
+    int i, j, table_idx;
     uint16_t *beta_neighbors;
     uint16_t t;
     
@@ -178,8 +192,22 @@ void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
         table_idx = idx3d(i, float_to_half(x[i]), 0,
                           beta, USHRT_MAX);
         beta_neighbors = &tables[table_idx];
-        for(k = 0; k < beta; ++k) {
-            set_bit(atom_idxs, beta_neighbors[k]);
+        for(j = 0; j < beta_scale[i]; ++j) {
+            set_bit(atom_idxs, beta_neighbors[j]);
         }
     }
+}
+
+//Computes the scaling beta values based on the singular values
+int* compute_beta_scale(double *s_values, int alpha, int beta)
+{
+    int i;
+    int *beta_scale = malloc(sizeof(int) * alpha);
+    double c = (double)beta / s_values[0];
+
+    for(i = 0; i < alpha; i++) {
+        beta_scale[i] = (int)ceil(c * s_values[i]);
+    }
+
+    return beta_scale;
 }

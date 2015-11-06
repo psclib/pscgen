@@ -27,7 +27,8 @@ double ddot_(int *N, double *DX, int *INCX, double *DY, int *INCY);
 double* dmv_prod(double *A, double *x, int rows, int cols);
 double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
                  int B_cols);
-double* deig_Vt(double *A, int rows, int cols);
+double* d_SVD(double *input, int rows, int cols, double **U, double **S,
+              double **VT);
 double d_dot(double *X, double *Y, int N);
 
 #endif /* LINALG_H */

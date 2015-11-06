@@ -11,6 +11,7 @@ class NNU(object):
         self.tables = None
         self.Vt = None
         self.VD = None
+        self.beta_scale = None
 
     def save(self, filepath):
         """save class as self.name.txt"""
@@ -37,6 +38,7 @@ class NNU(object):
         self.tables = ret[3]
         self.Vt = ret[4]
         self.VD = ret[5]
+        self.beta_scale = ret[6]
 
     def index(self, X):
         '''
@@ -46,6 +48,9 @@ class NNU(object):
         '''
         X_rows, X_cols = X.shape
         X = X.T.flatten()
-        return pypscgen.encode(self.alpha, self.beta, self.D, self.D_rows,
-                               self.D_cols, self.tables, self.Vt, self.VD,
-                               X, X_rows, X_cols)
+        ret = pypscgen.encode(self.alpha, self.beta, self.D, self.D_rows,
+                              self.D_cols, self.tables, self.Vt, self.VD,
+                              self.beta_scale, X, X_rows, X_cols)
+        runtime = eval(str(ret[1]) + '.' + str(ret[2])) 
+
+        return ret[0], runtime, ret[3]

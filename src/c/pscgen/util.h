@@ -5,9 +5,11 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdint.h>
+#include <time.h>
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
+
 
 typedef uint32_t word_t;
 enum { WORD_SIZE = sizeof(word_t) * 8 };
@@ -35,5 +37,6 @@ double* d_transpose(double* mat, int rows, int cols);
 double* d_trim(double* mat, int rows, int cols, int new_rows, int new_cols);
 double* d_viewcol(double* mat, int col, int rows);
 inline void bit_set_idx(unsigned int *bitarray, size_t idx);
+struct timespec t_diff(struct timespec start, struct timespec end);
 
 #endif /*UTIL_H*/

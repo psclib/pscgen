@@ -23,6 +23,7 @@ typedef struct NNUDictionary {
     int D_cols; //cols in ldict
     double* Vt; //Vt from SVD(D) -- taking alpha columns
     double* VD; //dot(Vt, d)
+    int* beta_scale; //number of beta values for each alpha
 } NNUDictionary;
 
 NNUDictionary* new_dict(const int alpha, const int beta,
@@ -31,8 +32,10 @@ void delete_dict(NNUDictionary *dict);
 void save_dict(char *filepath, NNUDictionary *dict);
 NNUDictionary* load_dict(char *filepath);
 
-double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
+            double *avg_ab);
 void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
-                        int alpha, int beta);
+                        int alpha, int beta, int *beta_scale);
 
+int* compute_beta_scale(double *s_values, int alpha, int beta);
 #endif /*NNU_H*/

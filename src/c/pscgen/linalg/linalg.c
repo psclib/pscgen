@@ -55,7 +55,8 @@ double d_dot(double *X, double *Y, int N)
 }
 
 /* Returns Vt of a matrix A */
-double* deig_Vt(double *input, int rows, int cols)
+double* d_SVD(double *input, int rows, int cols, double **U, double **S,
+              double **VT)
 {
     int info, lwork;
     double wkopt;
@@ -64,22 +65,24 @@ double* deig_Vt(double *input, int rows, int cols)
     //TODO: switch to memcpy
     double *A = malloc(sizeof(double) * rows * cols);
     int i;
+    int min_rc = MIN(rows, cols);
+
     for(i = 0; i < rows*cols; i++)
         A[i] = input[i];
 
-    double *S = malloc(sizeof(double) * MIN(rows, cols));
-    double *U = malloc(sizeof(double) * rows * rows);
-    double *VT = malloc(sizeof(double) * cols * cols);
+    *S = malloc(sizeof(double) * min_rc);
+    *U = malloc(sizeof(double) * rows * rows);
+    *VT = malloc(sizeof(double) * cols * cols);
 
     /* Query and allocate the optimal workspace */
     lwork = -1;
-    dgesvd_("All", "All", &rows, &cols, A, &rows, S, U, &rows, VT,
+    dgesvd_("All", "All", &rows, &cols, A, &rows, *S, *U, &rows, *VT,
             &cols, &wkopt, &lwork, &info);
     lwork = (int)wkopt;
     work = malloc(sizeof(double) * lwork);
 
     /* Compute SVD */
-    dgesvd_("All", "All", &rows, &cols, A, &rows, S, U, &rows, VT,
+    dgesvd_("All", "All", &rows, &cols, A, &rows, *S, *U, &rows, *VT,
             &cols, work, &lwork, &info);
 
     /* Check for convergence */
@@ -88,11 +91,8 @@ double* deig_Vt(double *input, int rows, int cols)
         exit(1);
     }
 
+
     //clean-up
     free(A);
     free(work);
-    free(S);
-    free(U);
-
-    return VT;
 }
