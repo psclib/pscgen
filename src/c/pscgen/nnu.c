@@ -5,15 +5,23 @@ NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path,
                         const char *delimiters)
 {
-    //init variables
-    uint16_t *tables = malloc(sizeof(uint16_t) * alpha * beta * USHRT_MAX);
-    double *D, *Dt, *Vt, *Vt_full, *VD, *U, *S;
+    double *D;
     int rows, cols;
 
     //read in input dictionary file
     read_csv(input_csv_path, delimiters, &D, &rows, &cols);
 
-    //transpose Dt
+    //create NNUDictionary using read in file
+    return new_dict_from_buffer(alpha, beta, D, rows, cols);
+}
+
+NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
+                                    double *D, int rows, int cols)
+{
+    double *Dt, *Vt, *Vt_full, *VD, *U, *S;
+    uint16_t *tables = malloc(sizeof(uint16_t) * alpha * beta * USHRT_MAX);
+
+    //transpose D
     Dt = d_transpose(D, rows, cols);
 
     //get eigen vectors of input dictionary file
@@ -106,6 +114,7 @@ NNUDictionary* load_dict(char *filepath)
     dict->D = malloc(sizeof(double) * dict->D_rows * dict->D_cols);
     dict->Vt = malloc(sizeof(double) * dict->alpha * dict->D_rows);
     dict->VD = malloc(sizeof(double) * dict->alpha * dict->D_cols);
+    dict->beta_scale = malloc(sizeof(int) * dict->alpha);
     fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
     fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
     fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
@@ -129,7 +138,8 @@ void delete_dict(NNUDictionary *dict)
 double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
             double *avg_ab)
 {
-    int i, j, maxidx;
+    int i, j, maxidx, N;
+    int total_ab = 0;
     int alpha_beta = dict->alpha * dict->beta;
     int D_rows = dict->D_rows;
     int D_cols = dict->D_cols;
@@ -139,31 +149,24 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
     double maxcoeff = 0.0;
 
     word_t *atom_idxs = bit_vector(D_cols);
-
+    int *candidate_set = malloc(sizeof(int)*alpha*beta);
     double *D = dict->D;
     double *ret = new_dvec(X_cols);
     double *VX = dmm_prod(dict->Vt, X, dict->alpha, dict->D_rows,
                           X_rows, X_cols); 
 
 
-    int total_ab = 0;
-
 	for(i = 0; i < X_cols; ++i) {
 		atom_lookup(dict->tables, d_viewcol(VX, i, alpha), atom_idxs,
-                    alpha, beta, dict->beta_scale);
+                    candidate_set, &N, alpha, beta, dict->beta_scale);
 
-		for(j = 0; j < D_cols; j++) {
-            //skip unselected values
-            if(get_bit(atom_idxs, j) == 0) {
-                continue;
-            }
+		for(j = 0; j < N; j++) {
             total_ab++;
-            
             tmpcoeff = d_dot(d_viewcol(X, i, X_rows),
-                             d_viewcol(D, j, D_rows), D_rows);
+                             d_viewcol(D, candidate_set[j], D_rows), D_rows);
 			if(fabs(tmpcoeff) > maxcoeff) {
 				maxcoeff = tmpcoeff;
-				maxidx = j;
+				maxidx = candidate_set[j];
 			}
 		}
 
@@ -172,28 +175,33 @@ double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
         clear_all_bit(atom_idxs, D_cols);
 	}
 
+    *avg_ab = total_ab / (double)X_cols;
+
     //clean-up
     free(VX);
     free(atom_idxs);
-
-    *avg_ab = total_ab / (double)X_cols;
+    free(candidate_set);
 
 	return ret;
 }
 
 void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
-                 int alpha, int beta, int *beta_scale)
+                 int *candidate_set, int *N, int alpha, int beta,
+                 int *beta_scale)
 {
     int i, j, table_idx;
     uint16_t *beta_neighbors;
-    uint16_t t;
+    *N = 0;
     
     for(i = 0; i < alpha; i++) {
-        table_idx = idx3d(i, float_to_half(x[i]), 0,
-                          beta, USHRT_MAX);
+        table_idx = idx3d(i, float_to_half(x[i]), 0, beta, USHRT_MAX);
         beta_neighbors = &tables[table_idx];
         for(j = 0; j < beta_scale[i]; ++j) {
-            set_bit(atom_idxs, beta_neighbors[j]);
+            if(get_bit(atom_idxs, beta_neighbors[j]) == 0) {
+                set_bit(atom_idxs, beta_neighbors[j]);
+                candidate_set[*N] = beta_neighbors[j];
+                (*N)++;
+            }
         }
     }
 }

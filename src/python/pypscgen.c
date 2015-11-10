@@ -121,6 +121,75 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
     return result;
 }
 
+static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
+{
+    int alpha, beta, D_rows_c, D_cols_c;
+    PyObject *D_obj;
+   
+    if(!PyArg_ParseTuple(args, "iiOii", &alpha, &beta, &D_obj, &D_rows_c,
+                         &D_cols_c))
+        return NULL;
+
+    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    
+    if(!D_array) {
+        Py_DECREF(D_array);
+        return NULL;
+    }
+
+
+    double *D_input_buf = (double*)PyArray_DATA(D_array);
+
+    //Internal call
+    NNUDictionary *dict = new_dict_from_buffer(alpha, beta, D_input_buf,
+                                               D_rows_c, D_cols_c);
+
+    //clean-up input 
+    Py_DECREF(D_input_buf);
+
+    //Create return tuple
+    PyObject *result = PyTuple_New(7);
+    if(!result)
+        return NULL;
+
+    //Convert buffers to pyobjects
+    PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
+    PyObject *Vt = d_to_pobj(dict->Vt, dict->D_rows*dict->alpha);
+    PyObject *VD = d_to_pobj(dict->VD, dict->D_rows*dict->D_cols);
+    PyObject *beta_scale = i_to_pobj(dict->beta_scale, dict->alpha);
+    PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*USHRT_MAX);
+    PyObject *D_rows = PyInt_FromLong(dict->D_rows);
+    PyObject *D_cols = PyInt_FromLong(dict->D_cols);
+
+    //Error handling
+    if(!D || !Vt || !VD || !beta_scale || !tables || !D_rows || !D_cols) {
+        Py_DECREF(D);
+        Py_DECREF(Vt);
+        Py_DECREF(VD);
+        Py_DECREF(beta_scale);
+        Py_DECREF(tables);
+        Py_DECREF(D_rows);
+        Py_DECREF(D_cols);
+        Py_DECREF(result);
+        return NULL;
+    }
+
+    //Pack return tuple
+    PyTuple_SetItem(result, 0, D);
+    PyTuple_SetItem(result, 1, D_rows);
+    PyTuple_SetItem(result, 2, D_cols);
+    PyTuple_SetItem(result, 3, tables);
+    PyTuple_SetItem(result, 4, Vt);
+    PyTuple_SetItem(result, 5, VD);
+    PyTuple_SetItem(result, 6, beta_scale);
+
+    //clean-up
+    delete_dict(dict);
+
+    return result;
+}
+
+
 static PyObject* p_nnu(PyObject *self, PyObject *args)
 {
     int alpha, beta, X_rows, X_cols, D_rows, D_cols;
@@ -206,8 +275,11 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
 }
 
 static PyMethodDef module_methods[] = {
-    {"new_dict", p_new_dict, METH_VARARGS, "Create new dict."},
-    {"encode", p_nnu, METH_VARARGS, "Encode with dictionary."},
+    {"build_index_from_file", p_new_dict, METH_VARARGS,
+     "Create new NNUDictionary from a filepath."},
+    {"build_index", p_new_dict_from_buffer, METH_VARARGS,
+     "Create new NNUDictionary from a numpy array."},
+    {"index", p_nnu, METH_VARARGS, "Index into NNUDictionary."},
     {NULL, NULL, 0, NULL}
 };
 

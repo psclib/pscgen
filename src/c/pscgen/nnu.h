@@ -28,14 +28,16 @@ typedef struct NNUDictionary {
 
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const char *input_csv_path, const char *delimiters);
+NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
+                                    double *D, int rows, int cols);
 void delete_dict(NNUDictionary *dict);
 void save_dict(char *filepath, NNUDictionary *dict);
 NNUDictionary* load_dict(char *filepath);
 
 double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
             double *avg_ab);
-void atom_lookup(uint16_t *tables, double *x, unsigned int *atom_idxs,
-                        int alpha, int beta, int *beta_scale);
-
+void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
+                 int *candidate_set, int *N, int alpha, int beta,
+                 int *beta_scale);
 int* compute_beta_scale(double *s_values, int alpha, int beta);
 #endif /*NNU_H*/
