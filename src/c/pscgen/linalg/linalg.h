@@ -11,7 +11,7 @@
 #include <string.h>
 #include "../util.h"
 
-//BLAS/LAPACK Prototypes
+/* BLAS/LAPACK Prototypes */
 void dgemv_(char *TRANS, const int *M, const int *N, double *alpha,
             double *A, const int *LDA, double *X, const int *INCX,
             double *beta, double *C, const int *INCY);
@@ -23,11 +23,11 @@ int dgesvd_(char *jobz, char *jobvt, int *m, int *n, double *A, int *lda,
             double *work, int *lwork, int *info);
 double ddot_(int *N, double *DX, int *INCX, double *DY, int *INCY);
 
-//Wrapper functions
+/* Wrapper functions */
 double* dmv_prod(double *A, double *x, int rows, int cols);
 double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
                  int B_cols);
-double* d_SVD(double *input, int rows, int cols, double **U, double **S,
+void d_SVD(double *input, int rows, int cols, double **U, double **S,
               double **VT);
 double d_dot(double *X, double *Y, int N);
 

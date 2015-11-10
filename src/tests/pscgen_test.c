@@ -17,13 +17,13 @@ int main(int argc, char *argv[])
     double *A, ab;
     int rA, cA;
 
-    /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/code/pscgen/src/tests/D.csv", ","); */
+    NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/D.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/D2000.csv", ","); */
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
-    /* save_dict("/home/brad/data/dict2kalpha5.nnu", dict); */
+    save_dict("/home/brad/data/dict1500alpha30.nnu", dict);
 
 
-    NNUDictionary *dict = load_dict("/home/brad/data/dict5kalpha20.nnu");
+    /* NNUDictionary *dict = load_dict("/home/brad/data/dict5kalpha20.nnu"); */
     read_csv("/home/brad/data/kth_test.csv", ",", &A, &rA, &cA);
     /* read_csv("/home/brad/data/notredame/tiny.csv", ",", &A, &rA, &cA); */
     /* print_mat(A, rA, cA); */

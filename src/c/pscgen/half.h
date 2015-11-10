@@ -17,8 +17,6 @@ typedef uint16_t half;
 
 /* ----- prototypes ------ */
 float half_to_float(half);
-static uint32_t half_to_float_I(half);
 half float_to_half(float);
-static half float_to_half_I(uint32_t);
 
 #endif /*HALF_H*/

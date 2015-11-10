@@ -15,18 +15,19 @@ void read_csv(const char *filepath, const char *delimiters,
 {
     int nchars = 10000000;
     int nbytes = sizeof(char) * nchars;
-    int idx = 0;
+    int i = 0;
+    int j = 0;
     FILE *fp = fopen(filepath, "r");
     char *line = malloc(nbytes);
     char *item;
 
-    //initialize rows/cols
+    /* initialize rows/cols */
     *rows = 0;
     *cols = 0;
 
-    //get dimensions of csv file
+    /* get dimensions of csv file */
     while(fgets(line, nchars, fp) != NULL) {
-        //count cols for first rows
+        /* count cols for first rows */
         if((*cols) == 0) {
             item = strtok(line, delimiters);
             while(item != NULL) {
@@ -37,15 +38,13 @@ void read_csv(const char *filepath, const char *delimiters,
         (*rows)++;
     }
 
-    //allocate the buffer
+    /* allocate the buffer */
     *buf = malloc(sizeof(double) * (*rows) * (*cols));
 
-    //rewind fp to start of file
+    /* rewind fp to start of file */
     fseek(fp, 0, SEEK_SET);
 
-    int i = 0;
-    int j = 0;
-    //read into buffer
+    /* read into buffer */
     while(fgets(line, nchars, fp) != NULL) {
         item = strtok(line, delimiters);
         while(item != NULL) {
@@ -57,7 +56,7 @@ void read_csv(const char *filepath, const char *delimiters,
         i++;
     }
 
-    //clean-up
+    /* clean-up */
     fclose(fp);
     free(line);
 }
@@ -102,15 +101,15 @@ void d_argsort(double *vec, int *idxs, int N)
         idxs[i] = i;
     }
 
-    //set scoped pointer to vec
+    /* set scoped pointer to vec */
     _dvalues = vec;
 
-    //perform qsort
+    /* perform qsort */
     qsort(idxs, N, sizeof(int), d_argsort_compare);
 }
 
 
-//bit-set fuctions
+/* bit-set fuctions */
 word_t* bit_vector(int N)
 {
     return calloc(N / 32 + 1, sizeof(word_t));
@@ -158,7 +157,7 @@ double* d_transpose(double *mat, int rows, int cols)
     return mat_t;
 }
 
-double* d_trim(double* mat, int rows, int cols, int new_rows, int new_cols)
+double* d_trim(double* mat, int rows, int new_rows, int new_cols)
 {
     double *ret_mat = malloc(sizeof(double) * new_rows * new_cols);
     int i, j;
