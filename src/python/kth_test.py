@@ -30,65 +30,96 @@ nns_dists = []
 pct_NN = {key: [] for key in alphas}
 pct_approx_NN = {key: [] for key in alphas}
 
-Ns = [1, 5, 10, 20, 50, 100, 240, 500, 750]
-for i, N in enumerate(Ns):
-    D = KMeans(n_clusters=N)
-    D.fit(flat_X_tr[tr_subset])
-    D = D.cluster_centers_
-    D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
-    np.savetxt('D.csv', D.T, delimiter=',', fmt='%2.6f')
+# Ns = [1, 5, 10, 20, 50, 100, 240, 500, 750]
+# Ns = []
+# for i, N in enumerate(Ns):
+#     D = KMeans(n_clusters=N)
+#     D.fit(flat_X_tr[tr_subset, 42:42+96])
+#     D = D.cluster_centers_
+#     D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
+#     np.savetxt('D.csv', D.T, delimiter=',', fmt='%2.6f')
 
-    #NNS
-    svm_nns_xs_tr, svm_nns_xs_t = [], []
-    for x in X_tr:
-        nbrs = np.argmax(np.dot(D, x.T), axis=0)
-        svm_nns_xs_tr.append(bow(nbrs, N))
+#     #NNS
+#     svm_nns_xs_tr, svm_nns_xs_t = [], []
+#     for x in X_tr:
+#         x = x[:, 42:42+96]
+#         x = x / np.linalg.norm(x)
+#         nbrs = np.argmax(np.dot(D, x.T), axis=0)
+#         svm_nns_xs_tr.append(bow(nbrs, N))
 
-    for x in X_t:
-        nbrs = np.argmax(np.dot(D, x.T), axis=0)
-        svm_nns_xs_t.append(bow(nbrs, N))
+#     for x in X_t:
+#         x = x[:, 42:42+96]
+#         x = x / np.linalg.norm(x)
+#         nbrs = np.argmax(np.dot(D, x.T), axis=0)
+#         svm_nns_xs_t.append(bow(nbrs, N))
 
-    acc = util.predict_chi2(svm_nns_xs_tr, ys_tr, svm_nns_xs_t, ys_t)
-    nns_dists.append(acc)
+#     acc = util.predict_chi2(svm_nns_xs_tr, ys_tr, svm_nns_xs_t, ys_t)
+#     print N, acc
+    # nns_dists.append(acc)
 
 
 N = 1500
 D = KMeans(n_clusters=N)
-D.fit(flat_X_tr[tr_subset])
+D.fit(flat_X_tr[tr_subset, 42:42+96])
 D = D.cluster_centers_
 D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
 np.savetxt('D.csv', D.T, delimiter=',', fmt='%2.6f')
 
 
-alphas = [1, 5, 5, 10, 10, 20, 20, 25, 30]
-betas = [1, 1, 2, 2, 5, 5, 12, 25, 25]
+# alphas = [1, 5, 5, 10, 10, 20, 20, 25, 30]
+# betas = [1, 1, 2, 2, 5, 5, 12, 25, 25]
+alphas = [10]
+betas = [10]
 
 nnu_dists = []
 nnu_runtimes = []
 ABs = []
 
+
 #NNU
 for alpha, beta in zip(alphas, betas):
-    print N, alpha
+    print alpha, beta
     nnu = pscgen.NNU(alpha, beta)
     nnu.build_index_from_file('D.csv')
     runtime_total = 0.0
     avg_abs = []
     svm_xs_tr, svm_xs_t = [], []
+    total_matches = 0
+    total_samples = 0
 
-    print 'Enc training'
     for i, x in enumerate(X_tr):
+        print i
+        total_samples += len(x)
+        x = x[:, 42:42+96]
+        x = x / np.linalg.norm(x)
         # np.savetxt('x.csv', x.T, fmt='%2.6f')
-        # nbrs = np.argmax(np.dot(D, x.T), axis=0)
+        nbrs = np.argmax(np.dot(D, x.T), axis=0)
+
+        print D.shape
+        print x.T.shape
+        assert False
         nnu_nbrs, runtime, avg_ab = nnu.index(x.T)
+        matches = nbrs - nnu_nbrs
+        total_matches += np.where(matches == 0)[0]
+
+        runtime = 0
+        avg_ab = 0
         svm_xs_tr.append(bow(nnu_nbrs, N))
         runtime_total += runtime
         avg_abs.append(avg_ab)
+        print total_matches, total_samples
         
-    print 'Enc testing'
     for x in X_t:
-        # nbrs = np.argmax(np.dot(D, x.T), axis=0)
+        total_samples += len(x)
+        x = x[:, 42:42+96]
+        x = x / np.linalg.norm(x)
+
+        nbrs = np.argmax(np.dot(D, x.T), axis=0)
         nnu_nbrs, runtime, avg_ab = nnu.index(x.T)
+        matches = nbrs - nnu_nbrs
+        total_matches += np.where(matches == 0)[0]
+
+        # nnu_nbrs = np.random.permutation(len(D))[:alpha*beta]
         svm_xs_t.append(bow(nnu_nbrs, N))
         runtime_total += runtime
         avg_abs.append(avg_ab)

@@ -27,6 +27,7 @@ void read_csv(const char *filepath, const char *delimiters, double **buf,
               int *rows, int* cols);
 
 void print_mat(double *buf, int rows, int cols);
+void print_mat_i(int *buf, int rows, int cols);
 
 inline double* new_dvec(int N);
 inline void zero_dvec(double *vec, int N);

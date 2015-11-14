@@ -9,9 +9,6 @@
 #include "util.h"
 #include "linalg/linalg.h"
 
-#define RANGE_16  1 << 16
-#define RANGE_32 1 << 32
-
 /* NNU dictionary (uint16 implementation) */
 typedef struct NNUDictionary {
     int alpha; /* number of tables */
@@ -21,6 +18,7 @@ typedef struct NNUDictionary {
     double* D; /* learned dictionary */
     int D_rows; /* rows in ldict */
     int D_cols; /* cols in ldict */
+    double* D_mean;
     double* Vt; /* Vt from SVD(D) -- taking alpha columns */
     double* VD; /* dot(Vt, d) */
     int* beta_scale; /* number of beta values for each alpha */
@@ -34,9 +32,13 @@ void delete_dict(NNUDictionary *dict);
 void save_dict(char *filepath, NNUDictionary *dict);
 NNUDictionary* load_dict(char *filepath);
 
+/* Search algorithms */
 double* nnu(NNUDictionary *dict, double *X, int X_rows, int X_cols,
             double *avg_ab);
 double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K);
+
+/* Helper functions */
 inline void compute_max_dot(double *max_coeff, int *max_idx, double *D,
                             double *x, int D_rows, int D_cols);
 inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
@@ -46,4 +48,10 @@ void atom_lookup(uint16_t *tables, double *x, word_t *atom_idxs,
                  int *candidate_set, int *N, int alpha, int beta,
                  int *beta_scale);
 int* compute_beta_scale(double *s_values, int alpha, int beta);
+
+/* Analysis functions */
+int* table_histogram(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+int* table_histogram2(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+double* table_distance(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+
 #endif /*NNU_H*/

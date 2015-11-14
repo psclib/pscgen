@@ -179,13 +179,28 @@ void print_mat(double *buf, int rows, int cols)
 {
     int i, j;
     for(i = 0; i < rows; i++) {
-        for(j = 0; j < cols; j++) {
-            printf("%2.6f, ", buf[idx2d(i, j, rows)]);
+        for(j = 0; j < cols-1; j++) {
+            printf("%2.6f,", buf[idx2d(i, j, rows)]);
         }
+        printf("%2.6f", buf[idx2d(i, j, rows)]);
         printf("\n");
     
     }
 }
+
+void print_mat_i(int *buf, int rows, int cols)
+{
+    int i, j;
+    for(i = 0; i < rows; i++) {
+        for(j = 0; j < cols-1; j++) {
+            printf("%d,", buf[idx2d(i, j, rows)]);
+        }
+        printf("%d", buf[idx2d(i, j, rows)]);
+        printf("\n");
+    
+    }
+}
+
 
 struct timespec t_diff(struct timespec start, struct timespec end)
 {
