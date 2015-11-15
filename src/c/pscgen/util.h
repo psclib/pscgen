@@ -38,6 +38,7 @@ double* d_transpose(double* mat, int rows, int cols);
 double* d_trim(double* mat, int rows, int new_rows, int new_cols);
 double* d_viewcol(double* mat, int col, int rows);
 inline void bit_set_idx(unsigned int *bitarray, size_t idx);
+int ipow(int base, int exp);
 struct timespec t_diff(struct timespec start, struct timespec end);
 
 #endif /*UTIL_H*/

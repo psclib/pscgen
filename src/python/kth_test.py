@@ -19,6 +19,8 @@ X_t = data['xs_t']
 ys_tr = data['ys_tr']
 ys_t = data['ys_t']
 
+assert False
+
 eps = 0.95
 # alphas = [5, 10, 20, 30]
 alphas = [30]
