@@ -12,7 +12,7 @@ def intersect(*d):
 X = np.loadtxt('/home/brad/data/kth_test_hog.csv', delimiter=',')
 D = np.loadtxt('/home/brad/data/D1500_hog.csv', delimiter=',')
 
-X = X.T
+X = X.T[:100]
 D = D.T
 
 D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]

@@ -44,14 +44,14 @@ void storage_to_float(float *i, uint16_t y, Storage_Scheme s)
             i[0] = nano_to_float(y);
             break;
         case two_mini: 
-            i[1] = mini_to_float(y >> 8);
-            i[0] = mini_to_float(y);
+            i[0] = mini_to_float(y >> 8);
+            i[1] = mini_to_float(y);
             break;
         case four_micro: 
-            i[3] = micro_to_float(y >> 12);
-            i[2] = micro_to_float(y >> 8);
-            i[1] = micro_to_float(y >> 4);
-            i[0] = micro_to_float(y);
+            i[0] = micro_to_float(y >> 12);
+            i[1] = micro_to_float(y >> 8);
+            i[2] = micro_to_float(y >> 4);
+            i[3] = micro_to_float(y);
             break;
     }
 }

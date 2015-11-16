@@ -77,6 +77,8 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
                          &input_csv_path, &delimiters))
         return NULL;
 
+    int s_stride = storage_stride(storage);
+
     //Internal call
     NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, storage,
                                    input_csv_path, delimiters);
@@ -88,8 +90,8 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
-    PyObject *Vt = d_to_pobj(dict->Vt, dict->D_rows*dict->alpha);
-    PyObject *VD = d_to_pobj(dict->VD, dict->D_rows*dict->D_cols);
+    PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
+    PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*USHRT_MAX);
     PyObject *D_rows = PyInt_FromLong(dict->D_rows);
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
@@ -129,6 +131,7 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
                          &D_obj, &D_rows_c, &D_cols_c))
         return NULL;
 
+    int s_stride = storage_stride(storage);
     PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
     
     if(!D_array) {
@@ -154,8 +157,8 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
-    PyObject *Vt = d_to_pobj(dict->Vt, dict->D_rows*dict->alpha);
-    PyObject *VD = d_to_pobj(dict->VD, dict->D_rows*dict->D_cols);
+    PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
+    PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*dict->gamma);
     PyObject *D_rows = PyInt_FromLong(dict->D_rows);
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
@@ -200,7 +203,7 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
         return NULL;
 
     PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
-    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_INT16,
+    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_UINT16,
                                               NPY_IN_ARRAY);
     PyObject *Vt_array = PyArray_FROM_OTF(Vt_obj, NPY_DOUBLE, NPY_IN_ARRAY);
     PyObject *VD_array = PyArray_FROM_OTF(VD_obj, NPY_DOUBLE, NPY_IN_ARRAY);

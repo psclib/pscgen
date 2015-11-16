@@ -19,13 +19,43 @@ def storage_stride(storage):
     elif storage == Storage_Scheme.four_micro:
         return 4
 
+def storage_gamma_exp(storage):
+    if storage == Storage_Scheme.half:
+        return 16
+    elif storage == Storage_Scheme.mini:
+        return 8
+    elif storage == Storage_Scheme.micro:
+        return 4
+    elif storage == Storage_Scheme.nano:
+        return 2
+    elif storage == Storage_Scheme.two_mini:
+        return 16
+    elif storage == Storage_Scheme.four_micro:
+        return 16
+
+def storage_name(storage):
+    if storage == Storage_Scheme.half:
+        return 'half'
+    elif storage == Storage_Scheme.mini:
+        return 'mini'
+    elif storage == Storage_Scheme.micro:
+        return 'micro'
+    elif storage == Storage_Scheme.nano:
+        return 'nano'
+    elif storage == Storage_Scheme.two_mini:
+        return 'two_mini'
+    elif storage == Storage_Scheme.four_micro:
+        return 'four_micro'
+
+
 class NNU(object):
-    def __init__(self, alpha, beta, gamma_exp, storage):
+    def __init__(self, alpha, beta, storage):
         self.alpha = alpha
         self.beta = beta
-        self.gamma_exp = gamma_exp
-        self.gamma = 2**gamma_exp
+        self.gamma_exp = storage_gamma_exp(storage)
+        self.gamma = 2**self.gamma_exp
         self.storage = storage
+        self.name = storage_name(storage)
         self.D = None
         self.D_rows = None
         self.D_cols = None

@@ -15,8 +15,8 @@ typedef struct NNUDictionary {
     int beta;  /* width of tables */
     int gamma; /* depth of tables */
     Storage_Scheme storage; /*float representation of each index */
+    
     uint16_t *tables; /* nnu lookup tables (stores candidates)*/
-
     double *D; /* learned dictionary */
     int D_rows; /* rows in ldict */
     int D_cols; /* cols in ldict */
