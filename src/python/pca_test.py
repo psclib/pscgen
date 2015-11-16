@@ -26,30 +26,35 @@ _, _, V = np.linalg.svd(D)
 VD = np.dot(V, D.T)
 VX = np.dot(V, X.T)
 
-assert False
 N = 10
 x_idx = np.argmax(VX[0])
+x_idx = 22
 
 for i in range(N):
-    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i])), label='V_' + str(i))
+    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i]))[::-1], label='V_' + str(i))
 
 
+plt.xlabel('Sorted Atoms by Distance')
+plt.ylabel('Distance')
 plt.legend()
 plt.show()
 
 for i in range(N):
-    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis]), axis=0))
-    plt.plot(x, label='Max VD0-' + str(i))
+    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis]), axis=0))[::-1]
+    plt.plot(x, label='V_' + str(i))
 
+plt.xlabel('Sorted Atoms by Distance')
+plt.ylabel('Distance')
 plt.legend()
 plt.show()
 
 
+assert False
 
 x_idx = np.argmin(VX[0])
 
 for i in range(N):
-    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i])), label='V_' + str(i))
+    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i]))[::-1], label='V_' + str(i))
 
 
 plt.legend()
@@ -57,7 +62,7 @@ plt.show()
 
 
 for i in range(N):
-    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis]), axis=0))
+    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis])[::-1], axis=0))
     plt.plot(x, label='Min VD0-' + str(i))
 
 plt.legend()

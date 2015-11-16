@@ -1,7 +1,8 @@
 #include "nnu.h"
 
 NNUDictionary* new_dict(const int alpha, const int beta, const int gamma_pow,
-                        const char *input_csv_path, const char *delimiters)
+                        Storage_Scheme storage, const char *input_csv_path,
+                        const char *delimiters)
 {
     double *D;
     int rows, cols;
@@ -10,23 +11,30 @@ NNUDictionary* new_dict(const int alpha, const int beta, const int gamma_pow,
     read_csv(input_csv_path, delimiters, &D, &rows, &cols);
 
     /* create NNUDictionary using read in file */
-    return new_dict_from_buffer(alpha, beta, gamma_pow, D, rows, cols);
+    return new_dict_from_buffer(alpha, beta, gamma_pow, storage, D, rows,
+                                cols);
 }
 
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
-                                    const int gamma_pow, double *D, int rows,
-                                    int cols)
+                                    const int gamma_pow,
+                                    Storage_Scheme storage, double *D,
+                                    int rows, int cols)
 {
-    int i, j, k, gamma, table_idx;
-    float dv;
+    int i, j, k, l, gamma, table_idx, s_stride;
 
     int *idxs;
     double *Dt, *Vt, *Vt_full, *VD, *U, *S, *c;
+    float *dv;
     uint16_t *tables;
     NNUDictionary *dict;
 
     gamma = ipow(2, gamma_pow);
-    tables = (uint16_t *)malloc(sizeof(uint16_t) * alpha * beta * gamma);
+    s_stride = storage_stride(storage);
+    tables = (uint16_t *)malloc(sizeof(uint16_t) * (alpha / s_stride) * beta *
+                                gamma);
+    printf("%d, %ld\n", s_stride, sizeof(uint16_t) * (alpha / s_stride) * beta *
+                                gamma);
+    dv = (float *)malloc(sizeof(float) * s_stride);
 
     /* transpose D */
     Dt = d_transpose(D, rows, cols);
@@ -41,19 +49,21 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     VD = dmm_prod(Vt, D, alpha, rows, rows, cols);
     
     /* populate nnu tables */
-    c = new_dvec(cols);
+    c = (double *)calloc(cols, sizeof(double));
     idxs = (int *)malloc(sizeof(int) * cols);
 
     for(i = 0; i < gamma; i++) {
-        dv = half_to_float(i); /* TODO: Change */
-        for(j = 0; j < alpha; j++) {
+        storage_to_float(dv, i, storage);
+        for(j = 0; j < alpha; j += s_stride) {
             for(k = 0; k < cols; k++) {
-                c[k] = fabs(VD[idx2d(j, k, alpha)] - dv);
+                for(l = 0; l < s_stride; l++) {
+                    c[k] += fabs(VD[idx2d(j+l, k, alpha)] - dv[l]);
+                }
             }
 
             d_argsort(c, idxs, cols);
             for(k = 0; k < beta; k++) {
-                table_idx = idx3d(j, i, k, beta, gamma);
+                table_idx = idx3d((j / s_stride), i, k, beta, gamma);
                 tables[table_idx] = idxs[k];
             }
 
@@ -67,6 +77,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     dict->alpha = alpha;
     dict->beta = beta;
     dict->gamma = gamma;
+    dict->storage = storage;
     dict->D = D;
     dict->D_rows = rows;
     dict->D_cols = cols;
@@ -90,6 +101,7 @@ void save_dict(char *filepath, NNUDictionary *dict)
     fwrite(&dict->alpha, sizeof(int), 1, fp);
     fwrite(&dict->beta, sizeof(int), 1, fp);
     fwrite(&dict->gamma, sizeof(int), 1, fp);
+    fwrite(&dict->storage, sizeof(Storage_Scheme), 1, fp);
     fwrite(dict->tables, sizeof(uint16_t),
            dict->alpha * dict->beta * dict->gamma, fp);
     fwrite(&dict->D_rows, sizeof(int), 1, fp);
@@ -107,6 +119,7 @@ NNUDictionary* load_dict(char *filepath)
     fread(&dict->alpha, sizeof(int), 1, fp);
     fread(&dict->beta, sizeof(int), 1, fp);
     fread(&dict->gamma, sizeof(int), 1, fp);
+    fread(&dict->storage, sizeof(Storage_Scheme), 1, fp);
     dict->tables = (uint16_t *)malloc(sizeof(uint16_t) * dict->alpha *
                                       dict->beta * dict->gamma);
     fread(dict->tables, sizeof(uint16_t),
@@ -142,6 +155,7 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
     int total_ab = 0;
     int D_rows = dict->D_rows;
     int D_cols = dict->D_cols;
+    int s_stride = storage_stride(dict->storage);
     double max_coeff = 0.0;
 
     word_t *atom_idxs = bit_vector(D_cols);
@@ -155,7 +169,8 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
 
 	for(i = 0; i < X_cols; i++) {
 		atom_lookup(dict, d_viewcol(VX, i, dict->alpha), atom_idxs,
-                    candidate_set, &N, alpha, beta);
+                    candidate_set, &N, alpha, beta, s_stride);
+
         compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
                             d_viewcol(X, i, X_rows), candidate_set, D_rows, N);
 		ret[i] = max_idx;
@@ -226,16 +241,21 @@ double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K)
 
 /* NNU candidate lookup using the generated tables */
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
-                 int *candidate_set, int *N, int alpha, int beta)
+                 int *candidate_set, int *N, int alpha, int beta, int s_stride)
 {
-    int i, j, table_idx;
+    int i, j, table_idx, table_key, shift_amount;
     uint16_t *beta_neighbors;
     *N = 0;
     
-    for(i = 0; i < alpha; i++) {
-        table_idx = idx3d(i, float_to_half(x[i]), 0, dict->beta, dict->gamma);
+    for(i = 0; i < alpha / s_stride; i++) {
+        table_key = 0;
+        for(j = 0; j < s_stride; j++) {
+            shift_amount = (16 / s_stride) * j;
+            table_key |= (float_to_storage(x[i*s_stride + j], dict->storage) << shift_amount);
+        }
+        table_idx = idx3d(i, table_key, 0, dict->beta, dict->gamma);
         beta_neighbors = &dict->tables[table_idx];
-        for(j = 0; j < beta; ++j) {
+        for(j = 0; j < beta; j++) {
             if(get_bit(atom_idxs, beta_neighbors[j]) == 0) {
                 set_bit(atom_idxs, beta_neighbors[j]);
                 candidate_set[*N] = beta_neighbors[j];

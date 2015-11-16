@@ -14,6 +14,7 @@ typedef struct NNUDictionary {
     int alpha; /* height of tables */
     int beta;  /* width of tables */
     int gamma; /* depth of tables */
+    Storage_Scheme storage; /*float representation of each index */
     uint16_t *tables; /* nnu lookup tables (stores candidates)*/
 
     double *D; /* learned dictionary */
@@ -25,10 +26,12 @@ typedef struct NNUDictionary {
 
 
 NNUDictionary* new_dict(const int alpha, const int beta, const int gamma_pow,
-                        const char *input_csv_path, const char *delimiters);
+                        Storage_Scheme storage, const char *input_csv_path,
+                        const char *delimiters);
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
-                                    const int gamma_pow, double *D, int rows,
-                                    int cols);
+                                    const int gamma_pow,
+                                    Storage_Scheme storage, double *D,
+                                    int rows, int cols);
 void delete_dict(NNUDictionary *dict);
 void save_dict(char *filepath, NNUDictionary *dict);
 NNUDictionary* load_dict(char *filepath);
@@ -46,7 +49,8 @@ inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
                                 double *D, double *x, int *candidate_set,
                                 int D_rows, int N);
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
-                 int *candidate_set, int *N, int alpha, int beta);
+                 int *candidate_set, int *N, int alpha, int beta,
+                 int s_stride);
 /* int* compute_beta_scale(double *s_values, int alpha, int beta); */
 
 /* Analysis functions */
