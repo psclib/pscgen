@@ -97,6 +97,7 @@ class NNU(object):
         '''
         Creates an nnu index from a numpy array
         '''
+        D = np.copy(D)
 
         #normalize D
         D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
@@ -122,6 +123,7 @@ class NNU(object):
 
         X is dimensions x samples.
         '''
+        X = np.copy(X)
         X_rows, X_cols = X.shape
 
         if X_cols != self.D_rows:
