@@ -1,5 +1,5 @@
-set(libsrc pscgen/util.c pscgen/float_conversion.c pscgen/nnu.c
-    pscgen/linalg/linalg.c)
+set(libsrc pscgen/util.c pscgen/nnu_storage.c pscgen/nnu_dict.c
+    pscgen/linalg/linalg.c pscgen/nnu_generator.c)
 
 add_library(pscgen_shared SHARED ${libsrc})
 add_library(pscgen STATIC ${libsrc})

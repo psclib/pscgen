@@ -1,11 +1,11 @@
-#ifndef NNU_H
-#define NNU_H
+#ifndef NNU_DICT_H
+#define NNU_DICT_H
 
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
 #include <limits.h>
-#include "float_conversion.h"
+#include "nnu_storage.h"
 #include "util.h"
 #include "linalg/linalg.h"
 
@@ -24,21 +24,9 @@ typedef struct NNUDictionary {
     double *VD; /* dot(Vt, d) */
 } NNUDictionary;
 
-
-NNUDictionary* new_dict(const int alpha, const int beta, const int gamma_pow,
-                        Storage_Scheme storage, const char *input_csv_path,
-                        const char *delimiters);
-NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
-                                    const int gamma_pow,
-                                    Storage_Scheme storage, double *D,
-                                    int rows, int cols);
-void delete_dict(NNUDictionary *dict);
-void save_dict(char *filepath, NNUDictionary *dict);
-NNUDictionary* load_dict(char *filepath);
-
 /* Search algorithms */
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
-            int X_cols, double *avg_ab);
+         int X_cols, double *avg_ab);
 double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K);
 
@@ -51,11 +39,10 @@ inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
                  int *candidate_set, int *N, int alpha, int beta,
                  int s_stride);
-/* int* compute_beta_scale(double *s_values, int alpha, int beta); */
 
 /* Analysis functions */
 int* table_histogram(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 int* table_histogram2(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 double* table_distance(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 
-#endif /*NNU_H*/
+#endif /*NNU_DICT_H*/
