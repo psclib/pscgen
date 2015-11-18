@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     double *A, ab;
     int rA, cA;
 
-    NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, "/home/brad/data/D1500_hog.csv", ",");
+    NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, half, "/home/brad/data/D1500_hog.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/D2000.csv", ","); */
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
     save_dict("/home/brad/data/dict1500hog.nnu", dict);

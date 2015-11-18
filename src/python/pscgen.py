@@ -2,12 +2,60 @@ import cPickle
 import numpy as np
 import libpypscgen as pypscgen
 
+class Storage_Scheme:
+    half, mini, micro, nano, two_mini, four_micro = range(6)
+
+def storage_stride(storage):
+    if storage == Storage_Scheme.half:
+        return 1
+    elif storage == Storage_Scheme.mini:
+        return 1
+    elif storage == Storage_Scheme.micro:
+        return 1
+    elif storage == Storage_Scheme.nano:
+        return 1
+    elif storage == Storage_Scheme.two_mini:
+        return 2
+    elif storage == Storage_Scheme.four_micro:
+        return 4
+
+def storage_gamma_exp(storage):
+    if storage == Storage_Scheme.half:
+        return 16
+    elif storage == Storage_Scheme.mini:
+        return 8
+    elif storage == Storage_Scheme.micro:
+        return 4
+    elif storage == Storage_Scheme.nano:
+        return 2
+    elif storage == Storage_Scheme.two_mini:
+        return 16
+    elif storage == Storage_Scheme.four_micro:
+        return 16
+
+def storage_name(storage):
+    if storage == Storage_Scheme.half:
+        return 'half'
+    elif storage == Storage_Scheme.mini:
+        return 'mini'
+    elif storage == Storage_Scheme.micro:
+        return 'micro'
+    elif storage == Storage_Scheme.nano:
+        return 'nano'
+    elif storage == Storage_Scheme.two_mini:
+        return 'two_mini'
+    elif storage == Storage_Scheme.four_micro:
+        return 'four_micro'
+
+
 class NNU(object):
-    def __init__(self, alpha, beta, gamma_exp):
+    def __init__(self, alpha, beta, storage):
         self.alpha = alpha
         self.beta = beta
-        self.gamma_exp = gamma_exp
-        self.gamma = 2**gamma_exp
+        self.gamma_exp = storage_gamma_exp(storage)
+        self.gamma = 2**self.gamma_exp
+        self.storage = storage
+        self.name = storage_name(storage)
         self.D = None
         self.D_rows = None
         self.D_cols = None
@@ -36,8 +84,8 @@ class NNU(object):
         NOTE: ASSUMES D is zero mean/unit norm
         '''
         ret = pypscgen.build_index_from_file(self.alpha, self.beta,
-                                             self.gamma_exp, filepath,
-                                             delimiter)
+                                             self.gamma_exp, self.storage,
+                                             filepath, delimiter)
         self.D = ret[0]
         self.D_rows = ret[1]
         self.D_cols = ret[2]
@@ -49,6 +97,7 @@ class NNU(object):
         '''
         Creates an nnu index from a numpy array
         '''
+        D = np.copy(D)
 
         #normalize D
         D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
@@ -59,7 +108,7 @@ class NNU(object):
 
         D_rows, D_cols = D.shape
         ret = pypscgen.build_index(self.alpha, self.beta, self.gamma_exp,
-                                   D.flatten(), D_cols, D_rows)
+                                   self.storage, D.flatten(), D_cols, D_rows)
         self.D = ret[0]
         self.D_rows = ret[1]
         self.D_cols = ret[2]
@@ -74,6 +123,7 @@ class NNU(object):
 
         X is dimensions x samples.
         '''
+        X = np.copy(X)
         X_rows, X_cols = X.shape
 
         if X_cols != self.D_rows:
@@ -108,8 +158,8 @@ class NNU(object):
 
         X = np.ascontiguousarray(X.flatten())
         ret = pypscgen.index(alpha, beta, self.alpha, self.beta, self.gamma,
-                             self.D, self.D_rows, self.D_cols, self.tables,
-                             self.Vt, self.VD, X, X_cols, X_rows)
+                             self.storage, self.D, self.D_rows, self.D_cols,
+                             self.tables, self.Vt, self.VD, X, X_cols, X_rows)
         runtime = eval(str(ret[1]) + '.' + str(ret[2])) 
 
         if detail:

@@ -70,16 +70,18 @@ PyObject* d_to_pobj(double *buf, int N)
 
 static PyObject* p_new_dict(PyObject *self, PyObject *args)
 {
-    int alpha, beta, gamma_pow;
+    int alpha, beta, gamma_pow, storage;
     const char *input_csv_path, *delimiters;
 
-    if(!PyArg_ParseTuple(args, "iiiss", &alpha, &beta, &gamma_pow,
+    if(!PyArg_ParseTuple(args, "iiiiss", &alpha, &beta, &gamma_pow,
                          &input_csv_path, &delimiters))
         return NULL;
 
+    int s_stride = storage_stride(storage);
+
     //Internal call
-    NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, input_csv_path,
-                                   delimiters);
+    NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, storage,
+                                   input_csv_path, delimiters);
 
     //Create return tuple
     PyObject *result = PyTuple_New(7);
@@ -88,8 +90,8 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
-    PyObject *Vt = d_to_pobj(dict->Vt, dict->D_rows*dict->alpha);
-    PyObject *VD = d_to_pobj(dict->VD, dict->D_rows*dict->D_cols);
+    PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
+    PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*USHRT_MAX);
     PyObject *D_rows = PyInt_FromLong(dict->D_rows);
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
@@ -122,13 +124,14 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
 static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 {
-    int alpha, beta, gamma_pow, D_rows_c, D_cols_c;
+    int alpha, beta, gamma_pow, storage, D_rows_c, D_cols_c;
     PyObject *D_obj;
    
-    if(!PyArg_ParseTuple(args, "iiiOii", &alpha, &beta, &gamma_pow, &D_obj,
-                         &D_rows_c, &D_cols_c))
+    if(!PyArg_ParseTuple(args, "iiiiOii", &alpha, &beta, &gamma_pow, &storage,
+                         &D_obj, &D_rows_c, &D_cols_c))
         return NULL;
 
+    int s_stride = storage_stride(storage);
     PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
     
     if(!D_array) {
@@ -140,7 +143,7 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
     double *D_input_buf = (double*)PyArray_DATA(D_array);
 
     //Internal call
-    NNUDictionary *dict = new_dict_from_buffer(alpha, beta, gamma_pow,
+    NNUDictionary *dict = new_dict_from_buffer(alpha, beta, gamma_pow, storage,
                                                D_input_buf, D_rows_c,
                                                D_cols_c);
 
@@ -154,8 +157,8 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
-    PyObject *Vt = d_to_pobj(dict->Vt, dict->D_rows*dict->alpha);
-    PyObject *VD = d_to_pobj(dict->VD, dict->D_rows*dict->D_cols);
+    PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
+    PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*dict->gamma);
     PyObject *D_rows = PyInt_FromLong(dict->D_rows);
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
@@ -189,18 +192,18 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
 static PyObject* p_nnu(PyObject *self, PyObject *args)
 {
-    int alpha, beta, max_alpha, max_beta, gamma, X_rows, X_cols, D_rows,
-        D_cols;
+    int alpha, beta, max_alpha, max_beta, gamma, storage, X_rows, X_cols,
+        D_rows, D_cols;
     PyObject *X_obj, *D_obj, *tables_obj, *Vt_obj, *VD_obj;
 
-    if(!PyArg_ParseTuple(args, "iiiiiOiiOOOOii", &alpha, &beta, &max_alpha,
-                         &max_beta, &gamma, &D_obj, &D_rows, &D_cols,
+    if(!PyArg_ParseTuple(args, "iiiiiiOiiOOOOii", &alpha, &beta, &max_alpha,
+                         &max_beta, &gamma, &storage, &D_obj, &D_rows, &D_cols,
                          &tables_obj, &Vt_obj, &VD_obj, &X_obj, &X_rows,
                          &X_cols))
         return NULL;
 
     PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
-    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_INT16,
+    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_UINT16,
                                               NPY_IN_ARRAY);
     PyObject *Vt_array = PyArray_FROM_OTF(Vt_obj, NPY_DOUBLE, NPY_IN_ARRAY);
     PyObject *VD_array = PyArray_FROM_OTF(VD_obj, NPY_DOUBLE, NPY_IN_ARRAY);
@@ -225,8 +228,8 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
     double *X = (double*)PyArray_DATA(X_array);
 
     //create NNUDictionary
-    NNUDictionary dict = {max_alpha, max_beta, gamma, tables, D, D_rows,
-                          D_cols, Vt, VD};
+    NNUDictionary dict = {max_alpha, max_beta, gamma, storage, tables, D,
+                          D_rows, D_cols, Vt, VD};
 
     //Start timer
     struct timespec start, end, diff;

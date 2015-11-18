@@ -1,6 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
+from matplotlib.ticker import MultipleLocator
+
+import matplotlib
+matplotlib.rcParams.update({'font.size': 22})
 
 def intersect(*d):
     sets = iter(map(set, d))
@@ -26,38 +30,113 @@ _, _, V = np.linalg.svd(D)
 VD = np.dot(V, D.T)
 VX = np.dot(V, X.T)
 
-assert False
-N = 10
+N = 5
+linewidth = 2
 x_idx = np.argmax(VX[0])
+x_idx = np.random.permutation(len(X))[:100]
 
 for i in range(N):
-    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i])), label='V_' + str(i))
+    label = 'span$(v_{' + str(i+1) + '})$'
+    x = []
+    for j in range(len(x_idx)):
+        x.append(np.sort(np.abs(VX[i, x_idx[j]] - VD[i][:, np.newaxis]).flatten())[::-1])
 
+    xmean = np.mean(x, axis=0)
+    plt.plot(xmean, linewidth=linewidth, label=label)
 
+plt.xlabel('Sorted Atoms by Distance')
+plt.ylabel('Distance in Subspace Spanned by Principal Components')
 plt.legend()
-plt.show()
+fig = plt.gcf()
+fig.set_size_inches(18.5, 10.5)
+plt.savefig('/home/brad/11.15/V_individual.png')
+plt.clf()
 
 for i in range(N):
-    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis]), axis=0))
-    plt.plot(x, label='Max VD0-' + str(i))
+    x = []
+    for j in range(len(x_idx)):
+        x.append(np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx[j]][:, np.newaxis]), axis=0))[::-1])
+    x = np.mean(x, axis=0)
 
+    label = 'span$('
+    for j in range(i):
+        label += 'v_{' + str(j+1) + '},'
+    label += 'v_{' + str(i+1) + '})$'
+    plt.plot(x, linewidth=linewidth, label=label)
+
+plt.xlabel('Sorted Atoms by Distance')
+plt.ylabel('Distance in Subspace Spanned by Principal Components')
 plt.legend()
-plt.show()
+fig = plt.gcf()
+fig.set_size_inches(18.5, 10.5)
+plt.savefig('/home/brad/11.15/V_combined.png')
+plt.clf()
 
+fig = plt.figure()
+ax1 = fig.add_subplot(1,1,1)
+spacing = 1
+minorLocator = MultipleLocator(spacing)
 
-
-x_idx = np.argmin(VX[0])
 
 for i in range(N):
-    plt.plot(np.sort(np.abs(VX[i, x_idx] - VD[i])), label='V_' + str(i))
+    x = []
+    for j in range(len(x_idx)):
+        x.append(np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx[j]][:, np.newaxis]), axis=0))[::-1])
+
+    x = np.mean(x, axis=0)
+    x = x[1480:]
+    label = 'span$('
+    for j in range(i):
+        label += 'v_{' + str(j+1) + '},'
+    label += 'v_{' + str(i+1) + '})$'
+    ax1.plot(range(1480, 1500), x, linewidth=linewidth, label=label)
+
+ax1.xaxis.set_minor_locator(minorLocator)
+ax1.grid(b=True, which='minor', linewidth=1)
+plt.xlabel('Sorted Atoms by Distance')
+plt.ylabel('Distance in Subspace Spanned by Principal Components')
+# plt.xlim([1480, 1500])
+# plt.ylim([0.0, np.max(x)*1.1])
+# plt.legend()
+fig = plt.gcf()
+fig.set_size_inches(18.5, 12.5)
+plt.savefig('/home/brad/11.15/V_combined_zoom.png')
+plt.clf()
 
 
+
+N = 5
+
+for i in range(N):
+    label = '$v_{' + str(i+1) + '}^{T}X$'
+    plt.plot(np.sort(VX[i, :])[::-1], linewidth=linewidth, label=label)
+
+plt.xlabel('Sorted $v_i^{T}X$')
+plt.ylabel('$v_i^{T}X$')
 plt.legend()
-plt.show()
+fig = plt.gcf()
+fig.set_size_inches(18.5, 10.5)
+plt.savefig('/home/brad/11.15/sorted_vtx.png')
+plt.clf()
+
+for i in range(N):
+    label = '$v_{' + str(i+1) + '}^{T}D$'
+    plt.plot(np.sort(VD[i, :])[::-1], linewidth=linewidth, label=label)
+
+plt.xlabel('Sorted $v_i^{T}D$')
+plt.ylabel('$v_i^{T}D$')
+plt.legend()
+fig = plt.gcf()
+fig.set_size_inches(18.5, 10.5)
+plt.savefig('/home/brad/11.15/sorted_vtd.png')
+plt.clf()
+
+
+assert False
 
 
 for i in range(N):
-    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis]), axis=0))
+    x = np.sort(np.sum(np.abs(VD[:i+1] - VX[:i+1, x_idx][:, np.newaxis])[::-1], axis=0))
     plt.plot(x, label='Min VD0-' + str(i))
 
 plt.legend()
