@@ -1,4 +1,6 @@
+#ifndef STANDALONE
 #include "util.h"
+#endif
 
 static double* _dvalues;
 
@@ -18,7 +20,7 @@ void read_csv(const char *filepath, const char *delimiters,
     int i = 0;
     int j = 0;
     FILE *fp = fopen(filepath, "r");
-    char *line = malloc(nbytes);
+    char *line = (char *)malloc(nbytes);
     char *item;
 
     /* initialize rows/cols */
@@ -39,7 +41,7 @@ void read_csv(const char *filepath, const char *delimiters,
     }
 
     /* allocate the buffer */
-    *buf = malloc(sizeof(double) * (*rows) * (*cols));
+    *buf = (double *)malloc(sizeof(double) * (*rows) * (*cols));
 
     /* rewind fp to start of file */
     fseek(fp, 0, SEEK_SET);
@@ -64,7 +66,7 @@ void read_csv(const char *filepath, const char *delimiters,
 inline double* new_dvec(int N)
 {
     int i;
-    double *vec = malloc(sizeof(double) * N);
+    double *vec = (double *)malloc(sizeof(double) * N);
 
     for(i = 0; i < N; i++) {
         vec[i] = 0.0;
@@ -112,7 +114,7 @@ void d_argsort(double *vec, int *idxs, int N)
 /* bit-set fuctions */
 word_t* bit_vector(int N)
 {
-    return calloc(N / 32 + 1, sizeof(word_t));
+    return (word_t *)calloc(N / 32 + 1, sizeof(word_t));
 }
 
 inline int bindex(int b)
@@ -146,7 +148,7 @@ inline void clear_all_bit(word_t *data, int N)
 
 double* d_transpose(double *mat, int rows, int cols)
 {
-    double *mat_t = malloc(sizeof(double) * rows * cols);
+    double *mat_t = (double *)malloc(sizeof(double) * rows * cols);
     int i, j;
     for(i = 0; i < rows; i++) {
         for(j = 0; j < cols; j++) {
@@ -159,7 +161,7 @@ double* d_transpose(double *mat, int rows, int cols)
 
 double* d_trim(double* mat, int rows, int new_rows, int new_cols)
 {
-    double *ret_mat = malloc(sizeof(double) * new_rows * new_cols);
+    double *ret_mat = (double *)malloc(sizeof(double) * new_rows * new_cols);
     int i, j;
     for(i = 0; i < new_rows; i++) {
         for(j = 0; j < new_cols; j++) {
@@ -200,6 +202,37 @@ void print_mat_i(int *buf, int rows, int cols)
     
     }
 }
+
+double d_dot(double *X, double *Y, int N)
+{
+    int i;
+    double ret = 0;
+
+    for(i = 0; i < N; i++) {
+        ret += X[i] * Y[i]; 
+    }
+
+    return ret;
+}
+
+/* naive matrix-matrix product implementation */
+double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
+                 int B_cols)
+{
+    int i, j, k;
+    double *ret = (double *)malloc(sizeof(double) * A_rows * B_cols);
+    for(i = 0; i < A_rows; i++) {
+        for(j = 0; j < B_cols; j++) {
+            for(k = 0; k < A_cols; k++) {
+                ret[idx2d(i, j, A_rows)] += A[idx2d(i, k , A_rows)] *
+                                            B[idx2d(k, j, B_rows)];
+            }
+        }
+    }
+
+    return ret;
+}
+
 
 int ipow(int base, int exp)
 {

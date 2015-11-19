@@ -1,4 +1,6 @@
+#ifndef STANDALONE
 #include "nnu_dict.h"
+#endif
 
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
          int X_cols, double *avg_ab)
@@ -102,7 +104,7 @@ double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K)
 		for(j = 0; j < D_cols; j++) {
 		    for(k = 0; k < K; k++) {
                 tmp_coeff = d_dot(d_viewcol(X, i, X_rows),
-                                 d_viewcol(D, j, D_rows), D_rows);
+                                  d_viewcol(D, j, D_rows), D_rows);
                 tmp_coeff = fabs(tmp_coeff);
                 if(tmp_coeff > max_coeff) {
                     max_coeff = tmp_coeff;

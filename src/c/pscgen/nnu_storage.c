@@ -1,4 +1,6 @@
+#ifndef STANDALONE
 #include "nnu_storage.h"
+#endif
 
 int storage_gamma_pow(Storage_Scheme s)
 {

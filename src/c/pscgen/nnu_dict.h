@@ -5,9 +5,11 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
+
+#ifndef STANDALONE
 #include "nnu_storage.h"
 #include "util.h"
-#include "linalg/linalg.h"
+#endif
 
 /* NNU dictionary */
 typedef struct NNUDictionary {

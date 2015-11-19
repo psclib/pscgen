@@ -12,18 +12,15 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
 {
     int i, abg, int_width, float_width, s_stride, num_src;
     int D_str_sz, table_str_sz, max_str_sz, str_sz;
-    char *str, *tmp_str, *dict_str, *output_str;
-    const char *include_str;
+    char *str, *dict_str, *output_str;
     FILE *output_fp, *tmp_fp;
 
     /* Source files to include in generated .h file */
     const char *src_dir = "../../../src/c/pscgen/";
-    const char * const src_files[] = {"util.h", "util.c", "linalg/linalg.h",
-                                      "linalg/linalg.c", "nnu_storage.h", 
+    const char * const src_files[] = {"util.h", "util.c", "nnu_storage.h", 
                                       "nnu_storage.c",  "nnu_dict.h",
                                       "nnu_dict.c"};
-    include_str = "#include \"";
-    num_src = 8;
+    num_src = 6;
     output_fp = fopen(output_path, "w+");  
 
     s_stride = storage_stride(dict->storage);
@@ -45,9 +42,9 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
     output_str = (char *)malloc(sizeof(char) * max_str_sz);
     dict_str = (char *)malloc(sizeof(char) * 1000);
     str = (char *)malloc(sizeof(char) * str_sz);
-    tmp_str = (char *)malloc(sizeof(char) * str_sz);
-    strcpy(tmp_str, "#include \"");
 
+    /* define as standalone */
+    fprintf(output_fp, "#define STANDALONE\n");
 
     /* Add all source files to generated .h file*/
     for(i = 0; i < num_src; i++) {
@@ -56,15 +53,10 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
         tmp_fp = fopen(str, "r");
 
         while(fgets(str, str_sz, tmp_fp) != NULL) {
-            strncpy(tmp_str, str, 10);
-            if(strcmp(tmp_str, include_str) != 0) {
-                fprintf(output_fp, "%s", str);
-            }
+            fprintf(output_fp, "%s", str);
         }
-
         fprintf(output_fp, "\n");
     }
-
 
     /* tables */
     uint16_buffer_to_str(output_str, "nnu_table", dict->tables, abg);
@@ -202,13 +194,13 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     Dt = d_transpose(D, rows, cols);
 
     /* get eigen vectors of input dictionary file */
-    d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
+    lapack_d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
 
     /* trim to top alpha vectors */
     Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
 
     /* compute prod(V, D) */
-    VD = dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
+    VD = blas_dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
     
     /* populate nnu tables */
     c = (double *)calloc(cols, sizeof(double));

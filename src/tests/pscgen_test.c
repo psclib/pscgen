@@ -5,33 +5,35 @@
 #include <time.h>
 #include "nnu_generator.h"
 #include "nnu_storage.h"
+#include "nnu_dict.h"
 #include "util.h"
 
 int main(int argc, char *argv[])
 {
     time_t start, end;
-    int alpha = 2;
-    int beta = 2;
+    int alpha = 3;
+    int beta = 3;
     double *A, ab;
     int rA, cA;
 
-    generate_nnu("/home/brad/data/D750_hog.csv", "/home/brad/nnu.h", alpha, beta, mini);
-    /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/D2000.csv", ","); */
+    generate_nnu("/home/brad/data/D750_hog.csv", "/home/brad/nnu.h", alpha,
+                 beta, mini);
+    NNUDictionary *dict = new_dict(alpha, beta, mini, "/home/brad/data/D750_hog.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
     /* save_dict("/home/brad/data/dict1500hog.nnu", dict); */
     /* exit(1); */
 
     /* NNUDictionary *dict = load_dict("/home/brad/data/dict1500hog.nnu"); */
-    /* read_csv("/home/brad/data/kth_test_hog.csv", ",", &A, &rA, &cA); */
+    read_csv("/home/brad/data/kth_test_hog.csv", ",", &A, &rA, &cA);
     /* read_csv("/home/brad/data/D1500_hog.csv", ",", &A, &rA, &cA); */
     /* read_csv("/home/brad/data/kth_test.csv", ",", &A, &rA, &cA); */
     /* print_mat(A, rA, cA); */
-    /* double *ret = nns(dict, A, rA, cA); */
+    int *ret = nnu(dict, 2, 2, A, rA, cA, &ab);
     /* int* lookup_hist = table_histogram2(dict, A, rA, cA); */
     /* double* lookup_dist = table_distance(dict, A, rA, cA); */
 
 
-    /* print_mat_i(lookup_hist, alpha, beta); */
+    print_mat_i(ret, 1, cA);
     /* print_mat(lookup_dist, alpha, beta); */
     /* print_mat(ret, 1, cA); */
     /* print_mat(ret2, 1, cA); */
