@@ -2,7 +2,8 @@
 #include <Python.h>
 #include <structmember.h>
 #include <numpy/arrayobject.h>
-#include "nnu.h"
+#include "nnu_generator.h"
+#include "nnu_dict.h"
 
 
 PyObject* uint16_to_pobj(uint16_t *buf, int N)
@@ -73,15 +74,15 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
     int alpha, beta, gamma_pow, storage;
     const char *input_csv_path, *delimiters;
 
-    if(!PyArg_ParseTuple(args, "iiiiss", &alpha, &beta, &gamma_pow,
+    if(!PyArg_ParseTuple(args, "iiiiss", &alpha, &beta, &gamma_pow, &storage,
                          &input_csv_path, &delimiters))
         return NULL;
 
     int s_stride = storage_stride(storage);
 
     //Internal call
-    NNUDictionary *dict = new_dict(alpha, beta, gamma_pow, storage,
-                                   input_csv_path, delimiters);
+    NNUDictionary *dict = new_dict(alpha, beta, storage, input_csv_path,
+                                   delimiters);
 
     //Create return tuple
     PyObject *result = PyTuple_New(7);
@@ -143,7 +144,7 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
     double *D_input_buf = (double*)PyArray_DATA(D_array);
 
     //Internal call
-    NNUDictionary *dict = new_dict_from_buffer(alpha, beta, gamma_pow, storage,
+    NNUDictionary *dict = new_dict_from_buffer(alpha, beta, storage,
                                                D_input_buf, D_rows_c,
                                                D_cols_c);
 

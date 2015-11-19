@@ -9,7 +9,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#ifndef STANDALONE
 #include "../util.h"
+#endif
 
 /* BLAS/LAPACK Prototypes */
 void dgemv_(char *TRANS, const int *M, const int *N, double *alpha,
@@ -24,11 +27,11 @@ int dgesvd_(char *jobz, char *jobvt, int *m, int *n, double *A, int *lda,
 double ddot_(int *N, double *DX, int *INCX, double *DY, int *INCY);
 
 /* Wrapper functions */
-double* dmv_prod(double *A, double *x, int rows, int cols);
-double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
-                 int B_cols);
-void d_SVD(double *input, int rows, int cols, double **U, double **S,
-              double **VT);
-double d_dot(double *X, double *Y, int N);
+double* blas_dmv_prod(double *A, double *x, int rows, int cols);
+double* blas_dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
+                      int B_cols);
+void lapack_d_SVD(double *input, int rows, int cols, double **U, double **S,
+                  double **VT);
+double blas_d_dot(double *X, double *Y, int N);
 
 #endif /* LINALG_H */

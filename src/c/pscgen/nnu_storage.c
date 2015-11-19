@@ -1,4 +1,21 @@
-#include "float_conversion.h"
+#ifndef STANDALONE
+#include "nnu_storage.h"
+#endif
+
+int storage_gamma_pow(Storage_Scheme s)
+{
+    switch (s) {
+        case half: return 16;
+        case mini: return 8;
+        case micro: return 4;
+        case nano: return 2;
+        case two_mini: return 16;
+        case four_micro: return 16;
+    }
+
+    return -1;
+
+}
 
 int storage_stride(Storage_Scheme s)
 {
@@ -218,9 +235,9 @@ static uint32_t  half_to_float_I(uint16_t y)
 
 static uint16_t float_to_half_I(uint32_t i)
 {
-    register int s =  (i >> 16) & 0x00008000;                   /* sign */
-    register int e = ((i >> 23) & 0x000000ff) - (127 - 15);     /* exponent */
-    register int f =   i        & 0x007fffff;                   /* fraction */
+    int s =  (i >> 16) & 0x00008000;                   /* sign */
+    int e = ((i >> 23) & 0x000000ff) - (127 - 15);     /* exponent */
+    int f =   i        & 0x007fffff;                   /* fraction */
 
     /* need to handle NaNs and Inf? */
     if (e <= 0) {

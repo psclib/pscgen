@@ -1,5 +1,5 @@
-#ifndef FLOAT_CONVERSION_H
-#define FLOAT_CONVERSION_H
+#ifndef NNU_STORAGE_H
+#define NNU_STORAGE_H
 
 #include <stdio.h>
 #include <inttypes.h>
@@ -14,6 +14,7 @@ typedef enum
     four_micro
 } Storage_Scheme;
 
+int storage_gamma_pow(Storage_Scheme);
 int storage_stride(Storage_Scheme);
 uint16_t float_to_storage(float, Storage_Scheme);
 void storage_to_float(float*, uint16_t, Storage_Scheme);
@@ -27,4 +28,4 @@ uint16_t float_to_half(float);
 uint8_t float_to_mini(float i);
 float mini_to_float(uint8_t y);
 
-#endif /*FLOAT_CONVERSION_H*/
+#endif /* NNU_STORAGE_H */
