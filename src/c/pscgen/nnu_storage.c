@@ -31,6 +31,20 @@ int storage_stride(Storage_Scheme s)
     return -1;
 }
 
+const char* print_storage(Storage_Scheme s)
+{
+    switch (s) {
+        case half: return "half";
+        case mini: return "mini";
+        case micro: return "micro";
+        case nano: return "nano";
+        case two_mini: return "two_mini";
+        case four_micro: return "four_micro";
+    }
+
+    return "";
+}
+
 uint16_t float_to_storage(float i, Storage_Scheme s)
 {
     switch (s) {

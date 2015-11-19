@@ -14,6 +14,7 @@ typedef enum
     four_micro
 } Storage_Scheme;
 
+const char* print_storage(Storage_Scheme);
 int storage_gamma_pow(Storage_Scheme);
 int storage_stride(Storage_Scheme);
 uint16_t float_to_storage(float, Storage_Scheme);
