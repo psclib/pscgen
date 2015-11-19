@@ -33,9 +33,9 @@ double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K);
 
 /* Helper functions */
-inline void compute_max_dot(double *max_coeff, int *max_idx, double *D,
+void compute_max_dot(double *max_coeff, int *max_idx, double *D,
                             double *x, int D_rows, int D_cols);
-inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
+void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
                                 double *D, double *x, int *candidate_set,
                                 int D_rows, int N);
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,

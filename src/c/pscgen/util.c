@@ -63,7 +63,7 @@ void read_csv(const char *filepath, const char *delimiters,
     free(line);
 }
 
-inline double* new_dvec(int N)
+double* new_dvec(int N)
 {
     int i;
     double *vec = (double *)malloc(sizeof(double) * N);
@@ -75,7 +75,7 @@ inline double* new_dvec(int N)
     return vec;
 }
 
-inline void zero_dvec(double *vec, int N)
+void zero_dvec(double *vec, int N)
 {
     int i;
 
@@ -85,13 +85,13 @@ inline void zero_dvec(double *vec, int N)
 }
 
 
-inline int idx2d(int i, int j, int rows)
+int idx2d(int i, int j, int rows)
 {
     return j * rows + i;
 }
 
 
-inline int idx3d(int i, int j, int k, int rows, int cols)
+int idx3d(int i, int j, int k, int rows, int cols)
 {
     return i * rows * cols + j * rows + k;
 }
@@ -117,31 +117,31 @@ word_t* bit_vector(int N)
     return (word_t *)calloc(N / 32 + 1, sizeof(word_t));
 }
 
-inline int bindex(int b)
+int bindex(int b)
 {
     return b / WORD_SIZE;
 }
-inline int boffset(int b)
+int boffset(int b)
 {
     return b % WORD_SIZE;
 }
 
-inline void set_bit(word_t *data, int b)
+void set_bit(word_t *data, int b)
 { 
     data[bindex(b)] |= 1 << (boffset(b)); 
 }
 
-inline void clear_bit(word_t *data, int b)
+void clear_bit(word_t *data, int b)
 { 
     data[bindex(b)] &= ~(1 << (boffset(b)));
 }
 
-inline int get_bit(word_t *data, int b)
+int get_bit(word_t *data, int b)
 { 
     return data[bindex(b)] & (1 << (boffset(b)));
 }
 
-inline void clear_all_bit(word_t *data, int N)
+void clear_all_bit(word_t *data, int N)
 {
     memset(data, 0, (N/32 + 1) * sizeof(word_t));
 }
