@@ -6,6 +6,7 @@ void generate_nnu(const char *D_path, const char *output_path, const int alpha,
     const char *delimiters = ",";
     NNUDictionary *dict = new_dict(alpha, beta, storage, D_path, delimiters);
     dict_to_file(dict, output_path);
+    delete_dict(dict);
 }
 
 void dict_to_file(NNUDictionary *dict, const char* output_path)
@@ -120,6 +121,11 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
 
     fprintf(output_fp, "%s", dict_str);  
     fclose(output_fp);
+
+    /* clean-up */
+    free(output_str);
+    free(dict_str);
+    free(str);
 }
 
 
@@ -138,6 +144,7 @@ void double_buffer_to_str(char *output, const char *name, double *buf, int N)
     strcat(output, str);
     strcat(output, "};");
 
+    /* clean-up */
     free(str);
 }
 
@@ -156,6 +163,7 @@ void uint16_buffer_to_str(char *output, const char *name, uint16_t *buf, int N)
     strcat(output, str);
     strcat(output, "};");
 
+    /* clean-up */
     free(str);
 }
 
