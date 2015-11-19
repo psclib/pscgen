@@ -121,7 +121,7 @@ double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K)
 
 
 /* Computes the max dot product from candidate set with input sample x */
-inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
+void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
                                 double *D, double *x, int *candidate_set,
                                 int D_rows, int N)
 {
@@ -141,7 +141,7 @@ inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
 }
 
 /* Computes the max dot product index of a Dictionary D with input sample x */
-inline void compute_max_dot(double *max_coeff, int *max_idx, double *D,
+void compute_max_dot(double *max_coeff, int *max_idx, double *D,
                             double *x, int D_rows, int D_cols)
 {
     int i;

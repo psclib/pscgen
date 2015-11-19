@@ -3,11 +3,11 @@
 
 int main()
 {
-    int alpha = 5;
-    int beta = 5;
+    int alpha = 10;
+    int beta = 10;
 
     /* Generate standalone nnu locally */
-    generate_nnu("../../../data/D10_hog.csv", "nnu.h", alpha, beta, mini);
+    generate_nnu("../../../data/D750_hog.csv", "nnu.h", alpha, beta, mini);
 
     return 0;
 }

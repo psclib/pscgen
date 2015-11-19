@@ -15,21 +15,21 @@ enum { WORD_SIZE = sizeof(word_t) * 8 };
 
 /* bit-set functions */
 word_t* bit_vector(int N);
-inline int bindex(int b);
-inline int boffset(int b);
-inline void set_bit(word_t *data, int b);
-inline void clear_bit(word_t *data, int b);
-inline int get_bit(word_t *data, int b);
-inline void clear_all_bit(word_t *data, int N);
-inline void bit_set_idx(unsigned int *bitarray, size_t idx);
+int bindex(int b);
+int boffset(int b);
+void set_bit(word_t *data, int b);
+void clear_bit(word_t *data, int b);
+int get_bit(word_t *data, int b);
+void clear_all_bit(word_t *data, int N);
+void bit_set_idx(unsigned int *bitarray, size_t idx);
 
 /* matrix functions */
 void read_csv(const char *filepath, const char *delimiters, double **buf,
               int *rows, int* cols);
 void print_mat(double *buf, int rows, int cols);
 void print_mat_i(int *buf, int rows, int cols);
-inline double* new_dvec(int N);
-inline void zero_dvec(double *vec, int N);
+double* new_dvec(int N);
+void zero_dvec(double *vec, int N);
 void d_argsort(double *vec, int *idxs, int N);
 double* d_transpose(double* mat, int rows, int cols);
 double* d_trim(double* mat, int rows, int new_rows, int new_cols);
@@ -39,8 +39,8 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
                  int B_cols);
 
 /* indexing functions */
-inline int idx2d(int i, int j, int rows);
-inline int idx3d(int i, int j, int k, int rows, int cols);
+int idx2d(int i, int j, int rows);
+int idx3d(int i, int j, int k, int rows, int cols);
 
 /* misc math */
 int ipow(int base, int exp);
