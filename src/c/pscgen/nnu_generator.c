@@ -18,10 +18,9 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
 
     /* Source files to include in generated .h file */
     const char *src_dir = "../../../src/c/pscgen/";
-    const char * const src_files[] = {"util.h", "util.c", "nnu_storage.h", 
-                                      "nnu_storage.c",  "nnu_dict.h",
-                                      "nnu_dict.c"};
-    num_src = 6;
+    const char * const src_files[] = {"nnu_storage.h", "nnu_storage.c",
+                                      "nnu_standalone.h"};
+    num_src = 3;
     output_fp = fopen(output_path, "w+");  
 
     s_stride = storage_stride(dict->storage);
@@ -44,8 +43,12 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
     dict_str = (char *)malloc(sizeof(char) * 1000);
     str = (char *)malloc(sizeof(char) * str_sz);
 
-    /* define as standalone */
+    /* create #defines */
     fprintf(output_fp, "#define STANDALONE\n");
+    fprintf(output_fp, "#define ALPHA %d\n", dict->alpha);
+    fprintf(output_fp, "#define BETA %d\n", dict->beta);
+    fprintf(output_fp, "#define ATOMS %d\n", dict->D_cols);
+    fprintf(output_fp, "#define S_STRIDE %d\n", s_stride);
 
     /* Add all source files to generated .h file*/
     for(i = 0; i < num_src; i++) {
@@ -101,8 +104,7 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
     strcat(dict_str, ",");
 
     /* storage */
-    snprintf(str, str_sz, "%d", dict->storage);
-    strcat(dict_str, str);
+    strcat(dict_str, print_storage(dict->storage));
     strcat(dict_str, ",");
 
     strcat(dict_str, "nnu_table,D,");

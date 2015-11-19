@@ -7,7 +7,7 @@ int main()
     int beta = 5;
 
     /* Generate standalone nnu locally */
-    generate_nnu("../../../data/D750_hog.csv", "nnu.h", alpha, beta, mini);
+    generate_nnu("../../../data/D10_hog.csv", "nnu.h", alpha, beta, mini);
 
     return 0;
 }
