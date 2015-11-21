@@ -1,5 +1,6 @@
 import cPickle
 import numpy as np
+from sklearn.preprocessing import normalize
 
 import pscgen_c
 
@@ -98,10 +99,8 @@ class NNU(object):
         '''
         Creates an nnu index from a numpy array
         '''
-        D = np.copy(D)
-
         #normalize D
-        D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
+        D = normalize(D)
 
         #subtract mean
         self.D_mean = np.mean(D, axis=0)
@@ -152,9 +151,9 @@ class NNU(object):
             assert False
 
         #normalize X
-        X = X / np.linalg.norm(X, axis=1)[:, np.newaxis]
+        X = normalize(X)
 
-        #subtract mean
+        #subtract D mean
         X = X - self.D_mean
 
         X = np.ascontiguousarray(X.flatten())

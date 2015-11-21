@@ -7,8 +7,6 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics.pairwise import chi2_kernel
 
-# import nnu
-
 def train_dict(data, components, sparsity, verbose=False):
     D = spams.trainDL(np.asfortranarray(data.T),
                       K=components,
@@ -23,18 +21,19 @@ def train_dict(data, components, sparsity, verbose=False):
 def encode(data, D, k):
     return np.array(spams.omp(np.asfortranarray(data.T), D, L=k).todense())
 
-def compute_bow(xs, N):
+
+def bow_list(xs, N):
     xs_rep = []
 
     for item in xs:
-        xs_rep.append(bag_rep(item, minlength=N))
+        xs_rep.append(bow(item, minlength=N))
 
     xs_rep = np.array(xs_rep)
 
     return xs_rep
 
 
-def bag_rep(xs, minlength):
+def bow(xs, minlength):
     counts = np.bincount(xs, minlength=minlength)
     return counts/np.linalg.norm(counts)
 

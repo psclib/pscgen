@@ -1,44 +1,58 @@
+# Runs comparison for nns/nnu at different settings
+
+import sys
+import random
+
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import MiniBatchKMeans as KMeans
-from multiprocessing import Pool
-from functools import partial
+from sklearn.preprocessing import normalize
 
 from pscgen import NNU, Storage_Scheme
-import utilities  as util
-np.random.seed(42)
+import utilities as util
 
-def bow(x, N):
-    return np.bincount(x, minlength=N) / float(len(x))
+def read_dataset(data_path, tr_pct=0.8):
+    '''The data format has either keys 'X' and 'Y' or
+       keys 'X_tr', 'X_t', 'Y_tr', 'Y_t' for datasets
+       that specify the training and testing fold
+    '''
+    data = np.load(data_path)
 
-def nnu_to_bow(x, alpha, beta, N, nnu):
-    x = x[:, 42:42+96]
-    nbrs = nnu.index(x, alpha=alpha, beta=beta)
-    return bow(nbrs, N)
+    if 'X' in data.keys():
+        X = data['X']
+        Y = data['Y']
+        XY = zip(X, Y)
+        random.shuffle(XY)
+        X, Y = zip(*XY)
+        tr_size = int(len(X)*tr_pct)
 
+        X_tr = X[:tr_size]
+        X_t = X[tr_size:]
+        Y_tr = Y[:tr_size]
+        Y_t = Y[tr_size:]
+    else:
+        X_tr = data['X_tr']
+        X_t = data['X_t']
+        Y_tr = data['Y_tr']
+        Y_t = data['Y_t']
 
-data = np.load('../data/kth_wang.npz')
+    return X_tr, X_t, Y_tr, Y_t
 
-X_tr = data['xs_tr']
-flat_X_tr = np.vstack(X_tr)
-tr_subset = np.random.permutation(len(flat_X_tr))[:200000]
-X_t = data['xs_t']
-ys_tr = data['ys_tr']
-ys_t = data['ys_t']
+data_path = sys.argv[1]
+NNU_N = 750
+KMeans_tr_size = 200000
 
-eps = 0.95
-alphas = [30]
+X_tr, X_t, Y_tr, Y_t = read_dataset(data_path)
+X_tr_Kmeans = np.vstack(X_tr)[:KMeans_tr_size]
+
 nns_dists = []
-pct_NN = {key: [] for key in alphas}
-pct_approx_NN = {key: [] for key in alphas}
 
-
-# # #nns
-Ns = [1, 5, 10, 20, 50, 100, 245, 500, 750]
+#nns
+# Ns = [1, 5, 10, 20, 50, 100, 245, 500, 750]
 # # Ns = [1, 2, 3, 4, 5]
 # for i, N in enumerate(Ns):
-#     D = KMeans(n_clusters=N)
-#     D.fit(flat_X_tr[tr_subset, 42:42+96])
+#     D = KMeans(n_clusters=N, init_size=N*2)
+#     D.fit(X_tr_Kmeans)
 #     D = D.cluster_centers_
 #     D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
 #     D_mean = np.mean(D, axis=0)
@@ -46,48 +60,40 @@ Ns = [1, 5, 10, 20, 50, 100, 245, 500, 750]
 
 #     svm_nns_xs_tr, svm_nns_xs_t = [], []
 #     for x in X_tr:
-#         x = x[:, 42:42+96]
 #         x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
 #         x = x - D_mean
 #         nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
-#         svm_nns_xs_tr.append(bow(nbrs, N))
+#         svm_nns_xs_tr.append(util.bow(nbrs, N))
 
 #     for x in X_t:
-#         x = x[:, 42:42+96]
 #         x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
 #         x = x - D_mean
 #         nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
-#         svm_nns_xs_t.append(bow(nbrs, N))
+#         svm_nns_xs_t.append(util.bow(nbrs, N))
 
-#     acc = util.predict_chi2(svm_nns_xs_tr, ys_tr, svm_nns_xs_t, ys_t)
+#     acc = util.predict_chi2(svm_nns_xs_tr, Y_tr, svm_nns_xs_t, Y_t)
 #     print N, acc
 #     nns_dists.append(acc)
 
 
-N = 750
-D = np.loadtxt('/home/brad/data/D750_hog.csv', delimiter=',')
-D = D.T
+D = KMeans(n_clusters=NNU_N, init_size=NNU_N*2)
+D.fit(X_tr_Kmeans)
+D = D.cluster_centers_
 
-D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
-D_mean = np.mean(D, axis=0)
-D = D - D_mean
-
-alphas = [1, 2, 3, 4, 5, 5, 5, 10, 10, 15, 25, 30]
-betas = [1, 1, 1, 1, 1, 2, 4, 5, 10, 10, 25, 25]
+alphas = [1, 2, 3, 4, 5, 5, 5, 10, 10, 15, 15, 30]
+betas = [1, 1, 1, 1, 1, 2, 4, 5, 10, 10, 15, 25]
 storages = [Storage_Scheme.mini, Storage_Scheme.two_mini, Storage_Scheme.half]
-storages = [Storage_Scheme.two_mini]
+storages = [Storage_Scheme.mini]
 
 nnu_dists = {}
 nnu_runtimes = {}
 ABs = {}
 
-pool = Pool(processes=4)
-
 #NNU
 for storage in storages:
-    nnu = NNU(30, 25, storage)
-    nnu.build_index(D)
+    nnu = NNU(max(alphas), max(betas), storage)
     print nnu.name
+    nnu.build_index(D)
     nnu_dists[nnu.name] = []
     nnu_runtimes[nnu.name] = []
     ABs[nnu.name] = []
@@ -99,33 +105,51 @@ for storage in storages:
         total_matches = 0
         total_samples = 0
 
-        enc_func = partial(nnu_to_bow, alpha=alpha, beta=beta, nnu=nnu, N=N)
-
-        svm_xs_tr = pool.map(enc_func, X_tr)
-        svm_xs_t = pool.map(enc_func, X_t)
-        # for i, x in enumerate(X_tr):
-        #     total_samples += len(x)
-        #     x = x[:, 42:42+96]
-        #     nnu_nbrs, runtime, avg_ab = nnu.index(x, alpha=alpha, beta=beta, detail=True)
-        #     svm_xs_tr.append(bow(nnu_nbrs, N))
-        #     runtime_total += runtime
-        #     avg_abs.append(avg_ab)
+        for i, x in enumerate(X_tr):
+            total_samples += len(x)
+            nnu_nbrs, runtime, avg_ab = nnu.index(x, alpha=alpha, beta=beta,
+                                                  detail=True)
+            svm_xs_tr.append(util.bow(nnu_nbrs, NNU_N))
+            runtime_total += runtime
+            avg_abs.append(avg_ab)
             
-        # for x in X_t:
-        #     total_samples += len(x)
-        #     x = x[:, 42:42+96]
-        #     nnu_nbrs, runtime, avg_ab = nnu.index(x, alpha=alpha, beta=beta, detail=True)
-        #     svm_xs_t.append(bow(nnu_nbrs, N))
-        #     runtime_total += runtime
-        #     avg_abs.append(avg_ab)
+        for x in X_t:
+            total_samples += len(x)
+            nnu_nbrs, runtime, avg_ab = nnu.index(x, alpha=alpha, beta=beta,
+                                                  detail=True)
+            svm_xs_t.append(util.bow(nnu_nbrs, NNU_N))
+            runtime_total += runtime
+            avg_abs.append(avg_ab)
 
-        acc = util.predict_chi2(svm_xs_tr, ys_tr, svm_xs_t, ys_t)
+        acc = util.predict_chi2(svm_xs_tr, Y_tr, svm_xs_t, Y_t)
         nnu_dists[nnu.name].append(acc)
         # nnu_runtimes[nnu.name].append(runtime_total)
         # ABs[nnu.name].append(np.mean(avg_abs))
         print alpha, beta, acc
 
+D = normalize(D)
+D_mean = np.mean(D, axis=0)
+D = D - D_mean
 
+svm_nns_xs_tr, svm_nns_xs_t = [], []
+for x in X_tr:
+    x = normalize(x)
+    x = x - D_mean
+    nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+    svm_nns_xs_tr.append(util.bow(nbrs, NNU_N))
+
+for x in X_t:
+    x = normalize(x)
+    x = x - D_mean
+    nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+    svm_nns_xs_t.append(util.bow(nbrs, NNU_N))
+
+acc = util.predict_chi2(svm_nns_xs_tr, Y_tr, svm_nns_xs_t, Y_t)
+print NNU_N, acc
+
+
+
+assert False
 # plt.plot(Ns, nns_dists, '-', label='nns', linewidth=2)
 
 names = ['half', 'mini', 'two_mini']
