@@ -1,6 +1,7 @@
 import cPickle
 import numpy as np
-import libpypscgen as pypscgen
+
+import pscgen_c
 
 class Storage_Scheme:
     half, mini, micro, nano, two_mini, four_micro = range(6)
@@ -83,7 +84,7 @@ class NNU(object):
         Creates an nnu index from a filepath
         NOTE: ASSUMES D is zero mean/unit norm
         '''
-        ret = pypscgen.build_index_from_file(self.alpha, self.beta,
+        ret = pscgen_c.build_index_from_file(self.alpha, self.beta,
                                              self.gamma_exp, self.storage,
                                              filepath, delimiter)
         self.D = ret[0]
@@ -107,7 +108,7 @@ class NNU(object):
         D = D - self.D_mean
 
         D_rows, D_cols = D.shape
-        ret = pypscgen.build_index(self.alpha, self.beta, self.gamma_exp,
+        ret = pscgen_c.build_index(self.alpha, self.beta, self.gamma_exp,
                                    self.storage, D.flatten(), D_cols, D_rows)
         self.D = ret[0]
         self.D_rows = ret[1]
@@ -157,7 +158,7 @@ class NNU(object):
         X = X - self.D_mean
 
         X = np.ascontiguousarray(X.flatten())
-        ret = pypscgen.index(alpha, beta, self.alpha, self.beta, self.gamma,
+        ret = pscgen_c.index(alpha, beta, self.alpha, self.beta, self.gamma,
                              self.storage, self.D, self.D_rows, self.D_cols,
                              self.tables, self.Vt, self.VD, X, X_cols, X_rows)
         runtime = eval(str(ret[1]) + '.' + str(ret[2])) 

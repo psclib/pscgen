@@ -1,3 +1,6 @@
+#copies /src/c to build folder
+file(COPY . DESTINATION .)
+
 set(libsrc pscgen/util.c pscgen/nnu_storage.c pscgen/nnu_dict.c
     pscgen/linalg/linalg.c pscgen/nnu_generator.c)
 

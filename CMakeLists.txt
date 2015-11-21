@@ -3,7 +3,7 @@ project (pscgen)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 
-find_package(OPENBLAS REQUIRED)
+find_package(BLAS REQUIRED)
 find_package(LAPACK REQUIRED)
 
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
