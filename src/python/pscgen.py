@@ -1,11 +1,20 @@
 import cPickle
 import numpy as np
-from sklearn.preprocessing import normalize
 
 import pscgen_c
 
+def normalize(X):
+    X = np.copy(X)
+    norms = np.linalg.norm(X, axis=1)
+    nonzero = np.where(norms != 0)
+    X[nonzero] /= norms[nonzero][:, np.newaxis]
+
+    return X
+
+
 class Storage_Scheme:
     half, mini, micro, nano, two_mini, four_micro = range(6)
+
 
 def storage_stride(storage):
     if storage == Storage_Scheme.half:
@@ -88,12 +97,12 @@ class NNU(object):
         ret = pscgen_c.build_index_from_file(self.alpha, self.beta,
                                              self.gamma_exp, self.storage,
                                              filepath, delimiter)
-        self.D = ret[0]
+        self.D = np.array(ret[0])
         self.D_rows = ret[1]
         self.D_cols = ret[2]
-        self.tables = ret[3]
-        self.Vt = ret[4]
-        self.VD = ret[5]
+        self.tables = np.array(ret[3], dtype=np.uint16)
+        self.Vt = np.array(ret[4])
+        self.VD = np.array(ret[5])
 
     def build_index(self, D):
         '''
@@ -109,12 +118,12 @@ class NNU(object):
         D_rows, D_cols = D.shape
         ret = pscgen_c.build_index(self.alpha, self.beta, self.gamma_exp,
                                    self.storage, D.flatten(), D_cols, D_rows)
-        self.D = ret[0]
+        self.D = np.array(ret[0])
         self.D_rows = ret[1]
         self.D_cols = ret[2]
-        self.tables = ret[3]
-        self.Vt = ret[4]
-        self.VD = ret[5]
+        self.tables = np.array(ret[3], dtype=np.uint16)
+        self.Vt = np.array(ret[4])
+        self.VD = np.array(ret[5])
 
 
     def index(self, X, alpha=None, beta=None, detail=False):

@@ -6,8 +6,9 @@ c_sources += ['../c/pscgen/linalg/linalg.c']
 c_sources += ['pscgen_c.c']
 
 pscgen_c = Extension('pscgen_c', sources=c_sources,
-                   include_dirs=['../c/pscgen', '../c/pscgen/linalg'],
-                   extra_link_args=['-lblas', '-llapack'])
+                     include_dirs=['../c/pscgen', '../c/pscgen/linalg'],
+                     extra_compile_args=['-fopenmp'],
+                     extra_link_args=['-lblas', '-llapack', '-lgomp'])
 
 setup(name='pscgen',
       version='0.1',

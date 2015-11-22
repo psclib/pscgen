@@ -5,11 +5,9 @@
 #include <string.h>
 #include <math.h>
 #include <limits.h>
-
-#ifndef STANDALONE
+#include "linalg/linalg.h"
 #include "nnu_storage.h"
 #include "util.h"
-#endif
 
 /* NNU dictionary */
 typedef struct NNUDictionary {
@@ -25,6 +23,18 @@ typedef struct NNUDictionary {
     double *Vt; /* Vt from SVD(D) -- taking alpha columns */
     double *VD; /* dot(Vt, d) */
 } NNUDictionary;
+
+/* Dynamically allocated NNUDictionary functionality */
+NNUDictionary* new_dict(const int alpha, const int beta,
+                        Storage_Scheme storage, const char *input_csv_path,
+                        const char *delimiters);
+NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
+                                    Storage_Scheme storage, double *D,
+                                    int rows, int cols);
+void delete_dict(NNUDictionary *dict);
+void save_dict(char *filepath, NNUDictionary *dict);
+NNUDictionary* load_dict(char *filepath);
+
 
 /* Search algorithms */
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,

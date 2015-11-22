@@ -7,6 +7,14 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics.pairwise import chi2_kernel
 
+def normalize(X):
+    X = np.copy(X)
+    norms = np.linalg.norm(X, axis=1)
+    nonzero = np.where(norms != 0)
+    X[nonzero] /= norms[nonzero][:, np.newaxis]
+
+    return X
+
 def train_dict(data, components, sparsity, verbose=False):
     D = spams.trainDL(np.asfortranarray(data.T),
                       K=components,
