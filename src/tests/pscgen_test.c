@@ -11,12 +11,12 @@
 int main(int argc, char *argv[])
 {
     time_t start, end;
-    int alpha = 25;
-    int beta = 30;
+    int alpha = 5;
+    int beta = 5;
     double *A, ab;
     int rA, cA;
 
-    NNUDictionary *dict = new_dict(alpha, beta, half, "/home/brad/data/D750_hog.csv", ",");
+    NNUDictionary *dict = new_dict(alpha, beta, mini, "/home/brad/data/D1500_hog.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
     /* save_dict("/home/brad/data/dict1500hog.nnu", dict); */
     /* exit(1); */
