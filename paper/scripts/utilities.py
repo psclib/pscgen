@@ -7,7 +7,13 @@ from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics.pairwise import chi2_kernel
 
-# import nnu
+def normalize(X):
+    X = np.copy(X)
+    norms = np.linalg.norm(X, axis=1)
+    nonzero = np.where(norms != 0)
+    X[nonzero] /= norms[nonzero][:, np.newaxis]
+
+    return X
 
 def train_dict(data, components, sparsity, verbose=False):
     D = spams.trainDL(np.asfortranarray(data.T),
@@ -24,19 +30,18 @@ def encode(data, D, k):
     return np.array(spams.omp(np.asfortranarray(data.T), D, L=k).todense())
 
 
-
-def compute_bow(xs, N):
+def bow_list(xs, N):
     xs_rep = []
 
     for item in xs:
-        xs_rep.append(bag_rep(item, minlength=N))
+        xs_rep.append(bow(item, minlength=N))
 
     xs_rep = np.array(xs_rep)
 
     return xs_rep
 
 
-def bag_rep(xs, minlength):
+def bow(xs, minlength):
     counts = np.bincount(xs, minlength=minlength)
     return counts/np.linalg.norm(counts)
 
@@ -126,21 +131,3 @@ def predict_chi2(tr_x, tr_y, t_x, t_y, batch=False, verbose=False):
         print cm
 
     return max_acc
-
-# def str_to_encoder(encoder_name):
-#     if encoder_name == 'nns':
-#         return nnu.nns
-#     elif encoder_name == 'nnu':
-#         return nnu.nnu
-#     elif encoder_name == 'pca-nnu':
-#         return nnu.nnu_pca
-#     elif encoder_name == 'par-nnu':
-#         return nnu.nnu_par
-#     elif encoder_name == 'par-pca-nnu':
-#         return nnu.nnu_par_pca
-#     elif encoder_name == 'mp':
-#         return nnu.mp
-#     elif encoder_name == 'nnu-mp':
-#         return nnu.mp_nnu
-#     elif encoder_name == 'pca-nnu-mp':
-#         return nnu.mp_nnu_pca

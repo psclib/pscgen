@@ -11,14 +11,12 @@
 int main(int argc, char *argv[])
 {
     time_t start, end;
-    int alpha = 3;
-    int beta = 3;
+    int alpha = 5;
+    int beta = 5;
     double *A, ab;
     int rA, cA;
 
-    generate_nnu("/home/brad/data/D750_hog.csv", "/home/brad/nnu.h", alpha,
-                 beta, mini);
-    NNUDictionary *dict = new_dict(alpha, beta, mini, "/home/brad/data/D750_hog.csv", ",");
+    NNUDictionary *dict = new_dict(alpha, beta, mini, "/home/brad/data/D1500_hog.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
     /* save_dict("/home/brad/data/dict1500hog.nnu", dict); */
     /* exit(1); */
@@ -28,7 +26,7 @@ int main(int argc, char *argv[])
     /* read_csv("/home/brad/data/D1500_hog.csv", ",", &A, &rA, &cA); */
     /* read_csv("/home/brad/data/kth_test.csv", ",", &A, &rA, &cA); */
     /* print_mat(A, rA, cA); */
-    int *ret = nnu(dict, 2, 2, A, rA, cA, &ab);
+    int *ret = nnu(dict, 20, 20, A, rA, cA, &ab);
     /* int* lookup_hist = table_histogram2(dict, A, rA, cA); */
     /* double* lookup_dist = table_distance(dict, A, rA, cA); */
 
@@ -39,9 +37,9 @@ int main(int argc, char *argv[])
     /* print_mat(ret2, 1, cA); */
 
     //clean-up
-    /* delete_dict(dict); */
-    /* free(A); */
-    /* free(lookup_hist); */
+    delete_dict(dict);
+    free(A);
+    free(ret);
     /* free(lookup_dist); */
 
     return 0;

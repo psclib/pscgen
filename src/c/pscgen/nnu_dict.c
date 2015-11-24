@@ -1,42 +1,212 @@
-#ifndef STANDALONE
 #include "nnu_dict.h"
-#endif
+
+NNUDictionary* new_dict(const int alpha, const int beta,
+                        Storage_Scheme storage, const char *input_csv_path,
+                        const char *delimiters)
+{
+    double *D;
+    int rows, cols;
+
+    /* read in input dictionary file */
+    read_csv(input_csv_path, delimiters, &D, &rows, &cols);
+
+    /* create NNUDictionary using read in file */
+    return new_dict_from_buffer(alpha, beta, storage, D, rows, cols);
+}
+
+NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
+                                    Storage_Scheme storage, double *D,
+                                    int rows, int cols)
+{
+    int i, j, k, l, idx, gamma, table_idx, s_stride;
+    int *idxs;
+    double *Dt, *Vt, *Vt_full, *VD, *U, *S, *c;
+    float *dv;
+    uint16_t *tables;
+    NNUDictionary *dict;
+
+    gamma = ipow(2, storage_gamma_pow(storage));
+    s_stride = storage_stride(storage);
+    tables = (uint16_t *)malloc(alpha * beta * gamma * sizeof(uint16_t));
+
+    /* transpose D */
+    Dt = d_transpose(D, rows, cols);
+
+    /* get eigen vectors of input dictionary file */
+    lapack_d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
+
+    /* trim to top alpha vectors */
+    Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
+
+    /* compute prod(V, D) */
+    VD = blas_dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
+    
+    /* populate nnu tables */
+    #pragma omp parallel private(dv, c, idxs, idx, table_idx, j, k, l)
+    {
+        idx = table_idx = j = k = l = 0;
+        dv = (float *)malloc(sizeof(float) * s_stride);
+        c = (double *)calloc(cols, sizeof(double));
+        idxs = (int *)malloc(sizeof(int) * cols);
+
+        #pragma omp for nowait
+        for(i = 0; i < gamma; i++) {
+            storage_to_float(dv, i, storage);
+            for(j = 0; j < alpha; j++) {
+                for(k = 0; k < cols; k++) {
+                    for(l = 0; l < s_stride; l++) {
+                        idx = idx2d(j*s_stride + l, k, alpha*s_stride);
+                        c[k] += fabs(VD[idx] - dv[l]);
+                    }
+                }
+
+                d_argsort(c, idxs, cols);
+                for(k = 0; k < beta; k++) {
+                    table_idx = idx3d(j, i, k, beta, gamma);
+                    tables[table_idx] = idxs[k];
+                }
+
+                zero_dvec(c, cols);
+            }
+        }
+
+        /* omp clean-up */
+        free(idxs);
+        free(dv);
+        free(c);
+    }
+
+    /* Initialze NNUDictionary */
+    dict = (NNUDictionary *)malloc(sizeof(NNUDictionary));
+    dict->tables = tables;
+    dict->alpha = alpha;
+    dict->beta = beta;
+    dict->gamma = gamma;
+    dict->storage = storage;
+    dict->D = D;
+    dict->D_rows = rows;
+    dict->D_cols = cols;
+    dict->VD = VD;
+    dict->Vt = Vt;
+
+    /* clean-up */
+    free(Dt);
+    free(U);
+    free(S);
+    free(Vt_full);
+
+    return dict;
+}
+
+void save_dict(char *filepath, NNUDictionary *dict)
+{
+    int s_stride = storage_stride(dict->storage);
+
+    FILE *fp = fopen(filepath, "w+");
+    fwrite(&dict->alpha, sizeof(int), 1, fp);
+    fwrite(&dict->beta, sizeof(int), 1, fp);
+    fwrite(&dict->gamma, sizeof(int), 1, fp);
+    fwrite(&dict->storage, sizeof(Storage_Scheme), 1, fp);
+    fwrite(dict->tables, sizeof(uint16_t),
+           dict->alpha * dict->beta * dict->gamma, fp);
+    fwrite(&dict->D_rows, sizeof(int), 1, fp);
+    fwrite(&dict->D_cols, sizeof(int), 1, fp);
+    fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
+    fwrite(dict->Vt, sizeof(double), dict->alpha*s_stride * dict->D_rows, fp);
+    fwrite(dict->VD, sizeof(double), dict->alpha*s_stride * dict->D_cols, fp);
+    fclose(fp);
+}
+
+NNUDictionary* load_dict(char *filepath)
+{
+
+    int s_stride;
+    NNUDictionary *dict = (NNUDictionary *)malloc(sizeof(NNUDictionary));
+    FILE *fp = fopen(filepath, "r");
+    fread(&dict->alpha, sizeof(int), 1, fp);
+    fread(&dict->beta, sizeof(int), 1, fp);
+    fread(&dict->gamma, sizeof(int), 1, fp);
+    fread(&dict->storage, sizeof(Storage_Scheme), 1, fp);
+    s_stride = storage_stride(dict->storage);
+    dict->tables = (uint16_t *)malloc(sizeof(uint16_t) * dict->alpha *
+                                      dict->beta * dict->gamma);
+    fread(dict->tables, sizeof(uint16_t),
+          dict->alpha * dict->beta * dict->gamma, fp);
+    fread(&dict->D_rows, sizeof(int), 1, fp);
+    fread(&dict->D_cols, sizeof(int), 1, fp);
+    dict->D = (double *)malloc(sizeof(double) * dict->D_rows * dict->D_cols);
+    dict->Vt = (double *)malloc(sizeof(double) * dict->alpha*s_stride *
+                                dict->D_rows);
+    dict->VD = (double *)malloc(sizeof(double) * dict->alpha*s_stride *
+                                dict->D_cols);
+    fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
+    fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
+    fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
+    fclose(fp);
+
+    return dict;
+}
+
+
+void delete_dict(NNUDictionary *dict)
+{
+    free(dict->tables);
+    free(dict->D);
+    free(dict->Vt);
+    free(dict->VD);
+    free(dict);
+}
 
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
          int X_cols, double *avg_ab)
 {
-    int i, N;
-    int max_idx = 0;
-    int total_ab = 0;
-    int D_rows = dict->D_rows;
-    int D_cols = dict->D_cols;
-    int s_stride = storage_stride(dict->storage);
-    double max_coeff = 0.0;
+    int i, D_rows, D_cols, s_stride, N, max_idx, total_ab, thread_ab, *ret,
+        *candidate_set;
+    word_t *atom_idxs;
+    double max_coeff, *D, *VX;
 
-    word_t *atom_idxs = bit_vector(D_cols);
-    int *candidate_set = (int *)calloc(alpha*beta, sizeof(int));
-    int *ret;
-    double *D = dict->D;
-    double *VX;
-
+    D_rows = dict->D_rows;
+    D_cols = dict->D_cols;
+    s_stride = storage_stride(dict->storage);
+    D = dict->D;
+    total_ab = 0;
     ret = (int *)calloc(X_cols, sizeof(int));
-    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows, X_cols); 
+    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                  X_cols); 
 
-	for(i = 0; i < X_cols; i++) {
-		atom_lookup(dict, d_viewcol(VX, i, dict->alpha*s_stride), atom_idxs,
-                    candidate_set, &N, alpha, beta, s_stride);
-        compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
-                            d_viewcol(X, i, X_rows), candidate_set, D_rows, N);
-		ret[i] = max_idx;
-        clear_all_bit(atom_idxs, D_cols);
-	}
+    #pragma omp parallel private(atom_idxs, candidate_set, N, max_coeff, \
+                                 max_idx, thread_ab)
+    {
+        N = max_idx = thread_ab = 0;
+        max_coeff = 0.0;
+        atom_idxs = bit_vector(D_cols);
+        candidate_set = (int *)calloc(alpha*beta, sizeof(int));
 
+        #pragma omp for
+        for(i = 0; i < X_cols; i++) {
+            atom_lookup(dict, d_viewcol(VX, i, dict->alpha*s_stride),
+                        atom_idxs, candidate_set, &N, alpha, beta, s_stride);
+            compute_max_dot_set(&max_coeff, &max_idx, &thread_ab, D,
+                                d_viewcol(X, i, X_rows), candidate_set,
+                                D_rows, N);
+            ret[i] = max_idx;
+            clear_all_bit(atom_idxs, D_cols);
+        }
+
+
+        #pragma omp atomic update
+        total_ab += thread_ab;
+
+        /* omp clean-up */
+        free(atom_idxs);
+        free(candidate_set);
+    }
+
+    /* update total ab used */
     *avg_ab = total_ab / (double)X_cols;
 
     /* clean-up */
     free(VX);
-    free(atom_idxs);
-    free(candidate_set);
 
 	return ret;
 }

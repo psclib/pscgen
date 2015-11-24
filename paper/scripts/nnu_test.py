@@ -1,10 +1,10 @@
 import numpy as np
-# import matplotlib.pyplot as plt
+import sys
 
 from pscgen import NNU, Storage_Scheme
 
 def gen_colormap(max_alpha, max_beta, storage, NNU_X, NNU_D,
-                 nbrs, random=False, verbose=False):
+                 nbrs, base_path, random=False, verbose=False):
     base_path = '/home/brad/11.15/'
     if random:
         iden = 'random'

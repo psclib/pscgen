@@ -1,30 +1,22 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import MiniBatchKMeans as KMeans
-from multiprocessing import Pool
-from functools import partial
 
 from pscgen import NNU, Storage_Scheme
 import utilities  as util
-np.random.seed(42)
 
 def bow(x, N):
     return np.bincount(x, minlength=N) / float(len(x))
 
-def nnu_to_bow(x, alpha, beta, N, nnu):
-    x = x[:, 42:42+96]
-    nbrs = nnu.index(x, alpha=alpha, beta=beta)
-    return bow(nbrs, N)
-
 
 data = np.load('/home/brad/data/kth_wang.npz')
 
-X_tr = data['xs_tr']
+X_tr = data['X_tr']
 flat_X_tr = np.vstack(X_tr)
 tr_subset = np.random.permutation(len(flat_X_tr))[:200000]
-X_t = data['xs_t']
-ys_tr = data['ys_tr']
-ys_t = data['ys_t']
+X_t = data['X_t']
+ys_tr = data['Y_tr']
+ys_t = data['Y_t']
 
 eps = 0.95
 alphas = [30]
@@ -34,34 +26,36 @@ pct_approx_NN = {key: [] for key in alphas}
 
 
 # # #nns
-Ns = [1, 5, 10, 20, 50, 100, 245, 500, 750]
-# # Ns = [1, 2, 3, 4, 5]
-# for i, N in enumerate(Ns):
-#     D = KMeans(n_clusters=N)
-#     D.fit(flat_X_tr[tr_subset, 42:42+96])
-#     D = D.cluster_centers_
-#     D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
-#     D_mean = np.mean(D, axis=0)
-#     D = D - D_mean
+Ns = [1, 5, 10, 20, 50, 100, 245, 500, 750, 1000, 1500]
+# Ns = [1, 2, 3, 4, 5]
+for i, N in enumerate(Ns):
+    D = KMeans(n_clusters=N)
+    D.fit(flat_X_tr[tr_subset, 42:])
+    D = D.cluster_centers_
+    D = D / np.linalg.norm(D, axis=1)[:, np.newaxis]
+    D_mean = np.mean(D, axis=0)
+    D = D - D_mean
 
-#     svm_nns_xs_tr, svm_nns_xs_t = [], []
-#     for x in X_tr:
-#         x = x[:, 42:42+96]
-#         x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
-#         x = x - D_mean
-#         nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
-#         svm_nns_xs_tr.append(bow(nbrs, N))
+    svm_nns_xs_tr, svm_nns_xs_t = [], []
+    for x in X_tr:
+        x = x[:, 42:]
+        x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
+        x = x - D_mean
+        nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+        svm_nns_xs_tr.append(bow(nbrs, N))
 
-#     for x in X_t:
-#         x = x[:, 42:42+96]
-#         x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
-#         x = x - D_mean
-#         nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
-#         svm_nns_xs_t.append(bow(nbrs, N))
+    for x in X_t:
+        x = x[:, 42:]
+        x = x / np.linalg.norm(x, axis=1)[:, np.newaxis]
+        x = x - D_mean
+        nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+        svm_nns_xs_t.append(bow(nbrs, N))
 
-#     acc = util.predict_chi2(svm_nns_xs_tr, ys_tr, svm_nns_xs_t, ys_t)
-#     print N, acc
-#     nns_dists.append(acc)
+    acc = util.predict_chi2(svm_nns_xs_tr, ys_tr, svm_nns_xs_t, ys_t)
+    print N, acc
+    nns_dists.append(acc)
+
+assert False
 
 
 N = 750
@@ -99,7 +93,6 @@ for storage in storages:
         total_matches = 0
         total_samples = 0
 
-        enc_func = partial(nnu_to_bow, alpha=alpha, beta=beta, nnu=nnu, N=N)
 
         svm_xs_tr = pool.map(enc_func, X_tr)
         svm_xs_t = pool.map(enc_func, X_t)

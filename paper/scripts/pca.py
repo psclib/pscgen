@@ -1,3 +1,5 @@
+#PCA analysis for NNU
+
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
@@ -13,8 +15,8 @@ def intersect(*d):
         result = result.intersection(s)
     return result
 
-X = np.loadtxt('/home/brad/data/kth_test_hog.csv', delimiter=',')
-D = np.loadtxt('/home/brad/data/D1500_hog.csv', delimiter=',')
+X = np.loadtxt('../data/kth_test_hog.csv', delimiter=',')
+D = np.loadtxt('../data/D1500_hog.csv', delimiter=',')
 
 X = X.T
 D = D.T
@@ -25,8 +27,6 @@ D_mean = np.mean(D, axis=0)
 D = D - D_mean
 X = X - D_mean
 _, _, V = np.linalg.svd(D)
-# V = np.random.random(V.shape)
-# V = V / np.linalg.norm(V, axis=1)[:, np.newaxis]
 VD = np.dot(V, D.T)
 VX = np.dot(V, X.T)
 

@@ -280,9 +280,9 @@ static PyMethodDef module_methods[] = {
     {NULL, NULL, 0, NULL}
 };
 
-PyMODINIT_FUNC initlibpypscgen()
+PyMODINIT_FUNC initpscgen_c()
 {
-    PyObject *m = Py_InitModule("libpypscgen", module_methods);
+    PyObject *m = Py_InitModule("pscgen_c", module_methods);
     if (m == NULL)
         return;
 

@@ -2,12 +2,13 @@
 #include "util.h"
 #endif
 
-static double* _dvalues;
 
-int d_argsort_compare(const void* a, const void* b)
+int d_argsort_compare(const void* a, const void* b, void *thunk)
 {
-    if(_dvalues[*(int*)b] < _dvalues[*(int*)a]) return 1;
-    if(_dvalues[*(int*)b] > _dvalues[*(int*)a]) return -1;
+    double *dvalues = (double *)thunk;
+
+    if(dvalues[*(int*)b] < dvalues[*(int*)a]) return 1;
+    if(dvalues[*(int*)b] > dvalues[*(int*)a]) return -1;
     return 0;
 }
 
@@ -103,11 +104,8 @@ void d_argsort(double *vec, int *idxs, int N)
         idxs[i] = i;
     }
 
-    /* set scoped pointer to vec */
-    _dvalues = vec;
-
     /* perform qsort */
-    qsort(idxs, N, sizeof(int), d_argsort_compare);
+    qsort_r(idxs, N, sizeof(int), d_argsort_compare, (void *)vec);
 }
 
 
