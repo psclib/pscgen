@@ -42,8 +42,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     VD = blas_dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
     
     /* populate nnu tables */
-    #pragma omp parallel private(dv, c, idxs, idx, table_idx, j, k, l) \
-        num_threads(1)
+    #pragma omp parallel private(dv, c, idxs, idx, table_idx, j, k, l)
     {
         idx = table_idx = j = k = l = 0;
         dv = (float *)malloc(sizeof(float) * s_stride);
@@ -176,7 +175,7 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
                   X_cols); 
 
     #pragma omp parallel private(atom_idxs, candidate_set, N, max_coeff, \
-                                 max_idx, thread_ab) num_threads(1)
+                                 max_idx, thread_ab)
     {
         N = max_idx = thread_ab = 0;
         max_coeff = 0.0;
