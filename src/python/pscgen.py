@@ -58,6 +58,20 @@ def storage_name(storage):
     elif storage == Storage_Scheme.four_micro:
         return 'four_micro'
 
+def name_to_storage(storage):
+    if storage == 'half':
+        return Storage_Scheme.half
+    elif storage == 'mini':
+        return Storage_Scheme.mini
+    elif storage == 'micro':
+        return Storage_Scheme.micro
+    elif storage == 'nano':
+        return Storage_Scheme.nano
+    elif storage == 'two_mini':
+        return Storage_Scheme.two_mini
+    elif storage == 'four_micro':
+        return Storage_Scheme.four_micro
+
 
 class NNU(object):
     def __init__(self, alpha, beta, storage):
@@ -175,3 +189,18 @@ class NNU(object):
             return ret[0], runtime, ret[3]
         else:
             return ret[0]
+
+    def to_dict(self):
+        nnu_dict = {}
+        nnu_dict['alpha'] = self.alpha
+        nnu_dict['beta'] = self.beta
+        nnu_dict['gamma'] = self.gamma
+        nnu_dict['storage'] = storage_name(self.storage)
+        nnu_dict['tables'] = list(self.tables.astype(int))
+        nnu_dict['D'] = list(self.D)
+        nnu_dict['D_rows'] = self.D_rows
+        nnu_dict['D_cols'] = self.D_cols
+        nnu_dict['Vt'] = list(self.Vt)
+        nnu_dict['VD'] = list(self.VD)
+
+        return nnu_dict

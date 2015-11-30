@@ -93,3 +93,49 @@ void bag_of_words(int *X, double *bag_X, int N, int max_len)
         bag_X[i] /= l2_norm;
     }
 }
+
+
+void class_idxs(int idx, int num_classes, int *c1, int *c2)
+{
+    int i, j, curr_idx;
+
+    curr_idx = 0;
+    for(i = 0; i < num_classes; i++) {
+        for(j = i + 1; j < num_classes; j++) {
+            if(idx == curr_idx) {
+                *c1 = i;
+                *c2 = j;
+                return;
+            }
+            curr_idx++;
+        }
+    }
+}
+
+int classify(double *X, SVM *svm)
+{
+    int i, c1, c2, max_wins, max_class_idx, *wins;
+    double *coef_col;
+    wins = (int *)calloc(svm->num_classes, sizeof(int));
+    max_wins = max_class_idx = 0;
+
+    for(i = 0; i < svm->num_clfs; i++) {
+        class_idxs(i, svm->num_classes, &c1, &c2);
+        coef_col = d_viewcol(svm->coefs, i, svm->num_clfs);
+        if(d_dot(coef_col, X, svm->num_features) + svm->intercepts[i] > 0) {
+            wins[c1]++;
+        }
+        else {
+            wins[c2]++;
+        }
+    }
+
+    for(i = 0; i < svm->num_classes; i++) {
+        if(wins[i] > max_wins) {
+            max_wins = wins[i];
+            max_class_idx = i;
+        }
+    }
+
+    return max_class_idx;
+}
