@@ -9,6 +9,31 @@ void generate_nnu(const char *D_path, const char *output_path, const int alpha,
     delete_dict(dict);
 }
 
+void generate_empty_nnu(const char *output_path, const int alpha,
+                        const int beta, const int D_rows, 
+                        const int max_D_cols, Storage_Scheme storage)
+{
+    int gamma, s_stride;
+    NNUDictionary *dict;
+
+    gamma = ipow(2, storage_gamma_pow(storage));
+    s_stride = storage_stride(storage);
+    dict = (NNUDictionary *)malloc(sizeof(NNUDictionary));
+    dict->alpha = alpha;
+    dict->beta = beta;
+    dict->gamma = gamma;
+    dict->D_rows = D_rows;
+    dict->D_cols = 0;
+    dict->D = (double *)malloc(D_rows*max_D_cols*sizeof(double));
+    dict->Vt = (double *)malloc(alpha*s_stride*D_rows*sizeof(double));
+    dict->VD = (double *)malloc(alpha*s_stride*max_D_cols*sizeof(double));
+    dict->tables = (uint16_t *)malloc(alpha*beta*gamma*sizeof(uint16_t));
+
+    dict_to_file(dict, output_path);
+    delete_dict(dict);
+}
+
+
 void dict_to_file(NNUDictionary *dict, const char* output_path)
 {
     int i, abg, int_width, float_width, s_stride, num_src;

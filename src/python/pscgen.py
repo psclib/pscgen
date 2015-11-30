@@ -74,7 +74,7 @@ def name_to_storage(storage):
 
 
 class NNU(object):
-    def __init__(self, alpha, beta, storage):
+    def __init__(self, alpha, beta, storage, D_rows=None, max_D_cols=None):
         self.alpha = alpha
         self.beta = beta
         self.gamma_exp = storage_gamma_exp(storage)
@@ -82,12 +82,27 @@ class NNU(object):
         self.storage = storage
         self.name = storage_name(storage)
         self.D = None
-        self.D_rows = None
+        self.D_rows = D_rows
         self.D_cols = None
+        self.max_D_cols = max_D_cols
         self.D_mean = None
         self.tables = None
         self.Vt = None
         self.VD = None
+
+    def build_standalone_c(self, output_path):
+        if self.max_D_cols == None:
+            print 'Max Dictionary Atoms must be specified'
+            assert False
+        
+        if self.D_rows == None:
+            print 'Number of features must be specified'
+            assert False
+
+        pscgen_c.generate(self.alpha, self.beta, self.D_rows, self.max_D_cols,
+                          self.storage, output_path)
+
+
 
     def save(self, filepath):
         """save class as self.name.txt"""

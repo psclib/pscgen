@@ -271,12 +271,29 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
     return result;
 }
 
+
+static PyObject* p_generate(PyObject *self, PyObject *args)
+{
+    int alpha, beta, D_rows, max_D_cols, storage;
+    const char *output_path;
+
+    if(!PyArg_ParseTuple(args, "iiiiis", &alpha, &beta, &D_rows, &max_D_cols,
+                         &storage, &output_path))
+        return NULL;
+
+    //Internal call
+    generate_empty_nnu(output_path, alpha, beta, D_rows, max_D_cols, storage);
+
+    return Py_BuildValue("");
+}
+
 static PyMethodDef module_methods[] = {
     {"build_index_from_file", p_new_dict, METH_VARARGS,
      "Create new NNUDictionary from a filepath."},
     {"build_index", p_new_dict_from_buffer, METH_VARARGS,
      "Create new NNUDictionary from a numpy array."},
     {"index", p_nnu, METH_VARARGS, "Index into NNUDictionary."},
+    {"generate", p_generate, METH_VARARGS, "Generate standalone NNU."},
     {NULL, NULL, 0, NULL}
 };
 
