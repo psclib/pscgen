@@ -261,6 +261,16 @@ void sliding_window(double *X, double *window_X, int N, int ws, int ss)
     }
 }
 
+void ith_window(double *X, double *window_X, int win_num, int ws, int ss)
+{
+    int i, s_amount;
+    s_amount = ss * win_num;
+
+    for(i = 0; i < ws; i++) {
+        window_X[i] = X[i + s_amount];
+    }
+}
+
 void normalize_colwise(double *X, int rows, int cols)
 {
     int i, j;

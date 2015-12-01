@@ -77,34 +77,16 @@ double d_dot(double *X, double *Y, int N)
     return ret;
 }
 
-/* Given dim of data N, window size ws and stride size ss, compute number
- * of windows that would be generated
- */
-int compute_num_sliding_windows(int N, int ws, int ss)
+void ith_window(double *X, double *window_X, int win_num, int ws, int ss)
 {
-    int i;
-    int windows = 0;
+    int i, s_amount;
+    s_amount = ss * win_num;
 
-    for(i = 0; i < N - ws + 1; i += ss) {
-        windows++;
-    }
-
-    return windows;
-}
-
-/* Takes X of length N and returns sliding window of size ws with stride ss 
- * STORED COULMN-WISE
- * */
-void sliding_window(double *X, double *window_X, int N, int ws, int ss)
-{
-    int i, j;
-
-    for(i = 0; i < N - ws + 1; i += ss) {
-        for(j = 0; j < ws; j++) {
-            window_X[idx2d(j, i, ws)] = X[i + j];
-        }
+    for(i = 0; i < ws; i++) {
+        window_X[i] = X[i + s_amount];
     }
 }
+
 
 double norm(double *X, int N)
 {
@@ -142,7 +124,7 @@ void normalize_colwise(double *X, int rows, int cols)
     }
 }
 
-void subtract_rowwise(double *X, double *Y, int rows, int cols)
+void subtract_colwise(double *X, double *Y, int rows, int cols)
 {
     int i, j;
 
@@ -631,8 +613,6 @@ int classify(double *X, SVM *svm)
 typedef struct Pipeline {
     int ws;
     int ss;
-    int num_windows;
-    int N;
 
     double *window_X;
     double *bag_X;
@@ -640,23 +620,20 @@ typedef struct Pipeline {
     SVM *svm;
 } Pipeline;
 
-int classification_pipeline(double *X, Pipeline *pipeline)
+int classification_pipeline(double *X, int x_len, Pipeline *pipeline)
 {
     int i, idx;
     double l2_norm;
 
     memset(pipeline->bag_X, 0, pipeline->nnu->D_cols);
 
-    sliding_window(X, pipeline->window_X, pipeline->N, pipeline->ws,
-                   pipeline->ss);
-    normalize_colwise(pipeline->window_X, pipeline->ws, pipeline->num_windows);
-    subtract_rowwise(pipeline->window_X, pipeline->nnu->D_mean, pipeline->ws,
-                     pipeline->num_windows);
+    for(i = 0; i*pipeline->ss < x_len - pipeline->ws + 1; i++) {
+        ith_window(X, pipeline->window_X, i, pipeline->ws, pipeline->ss);
+        normalize_colwise(pipeline->window_X, pipeline->ws, 1);
+        subtract_colwise(pipeline->window_X, pipeline->nnu->D_mean,
+                         pipeline->ws, 1);
 
-    for(i = 0; i < pipeline->num_windows; i++) {
-        idx = nnu(pipeline->nnu,
-                  d_viewcol(pipeline->window_X, i, pipeline->ws),
-                  pipeline->ws);
+        idx = nnu(pipeline->nnu, pipeline->window_X, pipeline->ws);
         pipeline->bag_X[idx] += 1.0;
     }
 

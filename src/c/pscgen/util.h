@@ -47,6 +47,7 @@ int idx3d(int i, int j, int k, int rows, int cols);
 /* classification pipeline functions */
 int compute_num_sliding_windows(int N, int ws, int ss);
 void sliding_window(double *X, double *window_X, int N, int ws, int ss);
+void ith_window(double *X, double *window_X, int win_num, int ws, int ss);
 void normalize_colwise(double *X, int rows, int cols);
 double norm(double *X, int N);
 void subtract_colwise(double *X, double *Y, int rows, int cols);

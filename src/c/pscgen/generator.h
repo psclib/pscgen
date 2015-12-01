@@ -7,6 +7,7 @@
 #include "nnu_storage.h"
 #include "classifier.h"
 #include "pipeline.h"
+#include "standalone_char.h"
 
 void generate_nnu(const char *D_path, const char *output_path, const int alpha,
                   const int beta, Storage_Scheme storage);

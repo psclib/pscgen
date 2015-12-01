@@ -35,7 +35,7 @@ void generate_empty_nnu(const char *output_path, const int alpha,
 
 char* pipeline_to_str(Pipeline *pipeline)
 {
-    int len;
+    int len, s_stride;
     int max_str_sz, str_sz;
     char *str, *output_str, *final_str, *nnu_str, *svm_str;
     
@@ -47,10 +47,33 @@ char* pipeline_to_str(Pipeline *pipeline)
     /* compue is max buffer size */
     max_str_sz = str_sz;
 
+    s_stride = storage_stride(pipeline->nnu->storage);
+
     /* allocate str buffers */
     output_str = (char *)malloc(sizeof(char) * max_str_sz);
     str = (char *)malloc(sizeof(char) * str_sz);
     final_str = (char *)malloc(sizeof(char) * 2000000);
+
+    /* create #defines */
+    len += sprintf(final_str + len, "#define WS %d\n",
+                   pipeline->ws);
+    len += sprintf(final_str + len, "#define SS %d\n",
+                   pipeline->ss);
+    len += sprintf(final_str + len, "#define NUM_FEATURES %d\n",
+                   pipeline->svm->num_features);
+    len += sprintf(final_str + len, "#define NUM_CLASSES %d\n",
+                   pipeline->svm->num_classes);
+    len += sprintf(final_str + len, "#define NUM_CLFS %d\n", 
+                   pipeline->svm->num_clfs);
+    len += sprintf(final_str + len, "#define ALPHA %d\n", 
+                   pipeline->nnu->alpha);
+    len += sprintf(final_str + len, "#define BETA %d\n", pipeline->nnu->beta);
+    len += sprintf(final_str + len, "#define ATOMS %d\n",
+                   pipeline->nnu->D_cols);
+    len += sprintf(final_str + len, "#define S_STRIDE %d\n", s_stride);
+
+    /* add STANDALONE_H */
+    len += sprintf(final_str + len, "%s\n", standalone_h);
 
     /* get nnu str */
     nnu_str = dict_to_str(pipeline->nnu);
@@ -60,19 +83,9 @@ char* pipeline_to_str(Pipeline *pipeline)
     svm_str = svm_to_str(pipeline->svm);
     len += sprintf(final_str + len, "%s\n", svm_str);
 
-    /* create #defines */
-    len += sprintf(final_str + len, "#define WS %d\n",
-                   pipeline->ws);
-    len += sprintf(final_str + len, "#define SS %d\n",
-                   pipeline->ss);
-    len += sprintf(final_str + len, "#define NUM_WINDOWS %d\n",
-                   pipeline->num_windows);
-    len += sprintf(final_str + len, "#define N %d\n",
-                   pipeline->N);
-
     /* window_X */
     double_buffer_to_str(output_str, "window_X", pipeline->window_X,
-                         pipeline->num_windows*pipeline->ws);
+                         pipeline->ws);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
 
@@ -95,17 +108,7 @@ char* pipeline_to_str(Pipeline *pipeline)
     strcat(output_str, str);
     strcat(output_str, ",");
 
-    /* num_windows */
-    snprintf(str, str_sz, "%d", pipeline->num_windows);
-    strcat(output_str, str);
-    strcat(output_str, ",");
-
-    /* N */
-    snprintf(str, str_sz, "%d", pipeline->N);
-    strcat(output_str, str);
-    strcat(output_str, ",");
-
-    strcat(output_str, "window_X,bag_X,dict,svm};");
+    strcat(output_str, "window_X,bag_X,&dict,&svm};");
 
     len += sprintf(final_str + len, "%s", output_str);  
 
@@ -125,7 +128,7 @@ char* svm_to_str(SVM *svm)
     len = 0;
 
     /* str width representations */
-    str_sz = 100000;
+    str_sz = 1000000;
 
     /* compue is max buffer size */
     max_str_sz = str_sz;
@@ -134,13 +137,6 @@ char* svm_to_str(SVM *svm)
     output_str = (char *)malloc(sizeof(char) * max_str_sz);
     str = (char *)malloc(sizeof(char) * str_sz);
     final_str = (char *)malloc(sizeof(char) * 1000000);
-
-    /* create #defines */
-    len += sprintf(final_str + len, "#define NUM_FEATURES %d\n",
-                   svm->num_features);
-    len += sprintf(final_str + len, "#define NUM_CLASSES %d\n",
-                   svm->num_classes);
-    len += sprintf(final_str + len, "#define NUM_CLFS %d\n", svm->num_clfs);
 
 
     /* wins */
@@ -217,12 +213,6 @@ char* dict_to_str(NNUDictionary *dict)
     dict_str = (char *)malloc(sizeof(char) * 1000);
     str = (char *)malloc(sizeof(char) * str_sz);
     final_str = (char *)malloc(sizeof(char) * 1000000);
-
-    /* create #defines */
-    len += sprintf(final_str + len, "#define ALPHA %d\n", dict->alpha);
-    len += sprintf(final_str + len, "#define BETA %d\n", dict->beta);
-    len += sprintf(final_str + len, "#define ATOMS %d\n", dict->D_cols);
-    len += sprintf(final_str + len, "#define S_STRIDE %d\n", s_stride);
 
     /* tables */
     uint16_buffer_to_str(output_str, "nnu_table", dict->tables, abg);

@@ -109,9 +109,12 @@ X_Kmeans = np.vstack(X)[:KMeans_tr_size]
 D = KMeans(n_clusters=args['D_atoms'], init_size=args['D_atoms']*3)
 D.fit(X_Kmeans)
 D = D.cluster_centers_
+np.savetxt('/home/brad/data/voice_D_200.csv', D.T, delimiter=',', fmt='%2.6f')
 D = util.normalize(D)
 D_mean = np.mean(D, axis=0)
 D = D - D_mean
+
+#TODO: update to use D
 
 svm_X = []
 for x in X:
@@ -123,6 +126,7 @@ for x in X:
 clf = SVC(kernel='linear')
 clf.fit(svm_X, Y)
 
+assert False
 svm_dict = {}
 svm_dict['num_classes'] = len(set(Y))
 svm_dict['num_clfs'] = len(clf.intercept_)
