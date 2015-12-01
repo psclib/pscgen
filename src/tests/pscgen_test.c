@@ -3,7 +3,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-#include "nnu_generator.h"
+#include "generator.h"
 #include "nnu_storage.h"
 #include "nnu_dict.h"
 #include "util.h"
@@ -19,7 +19,7 @@ int main(int argc, char *argv[])
     NNUDictionary *dict = new_dict(alpha, beta, mini, "/home/brad/data/D1500_hog.csv", ",");
     /* NNUDictionary *dict = new_dict(alpha, beta, "/home/brad/data/notredame/tiny.csv", ","); */
     /* save_dict("/home/brad/data/dict1500hog.nnu", dict); */
-    /* exit(1); */
+    exit(1);
 
     /* NNUDictionary *dict = load_dict("/home/brad/data/dict1500hog.nnu"); */
     read_csv("/home/brad/data/kth_test_hog.csv", ",", &A, &rA, &cA);

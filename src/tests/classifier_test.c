@@ -3,10 +3,10 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <time.h>
-#include "nnu_generator.h"
+#include "generator.h"
 #include "nnu_storage.h"
 #include "nnu_dict.h"
-#include "nnu_classifier.h"
+#include "classifier.h"
 #include "util.h"
 
 int main(int argc, char *argv[])
@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     double X[10] = {1,2,3,4,5,6,7,8,9,10};
     double Y[7] = {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7};
     int Z[22] = {1,4,7,3,2,2,6,6,9,2,1,2,4,2,3,2,5,6,5,4,3,5};
-    int num_windows = (int *)compute_num_sliding_windows(N, ws, ss);
+    int num_windows = compute_num_sliding_windows(N, ws, ss);
     double *window_X = (double *)calloc(num_windows * ws, sizeof(double));
     double *bag_rep = (double *)calloc(11, sizeof(double));
 
@@ -32,7 +32,7 @@ int main(int argc, char *argv[])
 
     printf("------\n");
 
-    subtract_rowwise(window_X, Y, ws, num_windows);
+    subtract_colwise(window_X, Y, ws, num_windows);
     print_mat(window_X, ws, num_windows);
     
     printf("------\n");
@@ -40,6 +40,12 @@ int main(int argc, char *argv[])
     print_mat(bag_rep, 1, 11);
 
     printf("------\n");
+    double *d_mean = mean_colwise(window_X, ws, num_windows);
+    print_mat(window_X, ws, num_windows);
+
+    printf("------\n");
+    for(i = 0; i < num_windows; i++)
+        printf("%f\n", d_mean[i]);
 
     return 0;
 }

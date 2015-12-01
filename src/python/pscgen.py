@@ -1,6 +1,9 @@
 import cPickle
 import numpy as np
+from sklearn.cluster import MiniBatchKMeans as KMeans
+from sklearn.svm import SVC
 
+import utilities as util
 import pscgen_c
 
 def normalize(X):
@@ -74,7 +77,7 @@ def name_to_storage(storage):
 
 
 class NNU(object):
-    def __init__(self, alpha, beta, storage, D_rows=None, max_D_cols=None):
+    def __init__(self, alpha, beta, storage):
         self.alpha = alpha
         self.beta = beta
         self.gamma_exp = storage_gamma_exp(storage)
@@ -82,27 +85,11 @@ class NNU(object):
         self.storage = storage
         self.name = storage_name(storage)
         self.D = None
-        self.D_rows = D_rows
         self.D_cols = None
-        self.max_D_cols = max_D_cols
         self.D_mean = None
         self.tables = None
         self.Vt = None
         self.VD = None
-
-    def build_standalone_c(self, output_path):
-        if self.max_D_cols == None:
-            print 'Max Dictionary Atoms must be specified'
-            assert False
-        
-        if self.D_rows == None:
-            print 'Number of features must be specified'
-            assert False
-
-        pscgen_c.generate(self.alpha, self.beta, self.D_rows, self.max_D_cols,
-                          self.storage, output_path)
-
-
 
     def save(self, filepath):
         """save class as self.name.txt"""
@@ -197,7 +184,8 @@ class NNU(object):
         X = np.ascontiguousarray(X.flatten())
         ret = pscgen_c.index(alpha, beta, self.alpha, self.beta, self.gamma,
                              self.storage, self.D, self.D_rows, self.D_cols,
-                             self.tables, self.Vt, self.VD, X, X_cols, X_rows)
+                             self.D_mean, self.tables, self.Vt, self.VD, X,
+                             X_cols, X_rows)
         runtime = eval(str(ret[1]) + '.' + str(ret[2])) 
 
         if detail:
@@ -219,3 +207,35 @@ class NNU(object):
         nnu_dict['VD'] = list(self.VD)
 
         return nnu_dict
+
+class Pipeline(object):
+    def __init__(self):
+        self.nnu = None
+        self.svm = None
+        self.KMeans_tr_size = 200000
+
+    def fit(self, X, Y, D_atoms, alpha, beta, storage):
+        X_Kmeans = np.vstack(X)[:self.KMeans_tr_size]
+        D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
+        D.fit(X_Kmeans)
+        D = D.cluster_centers_
+        D = util.normalize(D)
+        D_mean = np.mean(D, axis=0)
+        D = D - D_mean
+
+        svm_X = []
+        for x in X:
+            x = util.normalize(x)
+            x = x - D_mean
+            nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+            svm_X.append(util.bow(nbrs, D_atoms))
+
+        self.svm = SVC(kernel='linear')
+        self.svm.fit(svm_X, Y)
+
+        self.nnu = NNU(alpha, beta, storage)
+        self.nnu.build_index(D)
+       
+
+    def classify(self, X):
+        return pscgen_c.classify(X, self.nnu, self.svm)

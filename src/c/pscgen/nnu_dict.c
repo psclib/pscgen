@@ -20,10 +20,15 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
 {
     int i, j, k, l, idx, gamma, table_idx, s_stride;
     int *idxs;
-    double *Dt, *Vt, *Vt_full, *VD, *U, *S, *c;
+    double *Dt, *Vt, *Vt_full, *VD, *U, *S, *c, *D_mean;
     float *dv;
     uint16_t *tables;
     NNUDictionary *dict;
+
+    /* make zero-mean and unit variance */
+    normalize_colwise(D, rows, cols);
+    D_mean = mean_colwise(D, rows, cols);
+    subtract_colwise(D, D_mean, rows, cols);
 
     gamma = ipow(2, storage_gamma_pow(storage));
     s_stride = storage_stride(storage);
@@ -84,6 +89,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     dict->gamma = gamma;
     dict->storage = storage;
     dict->D = D;
+    dict->D_mean = D_mean; 
     dict->D_rows = rows;
     dict->D_cols = cols;
     dict->VD = VD;
@@ -152,6 +158,7 @@ void delete_dict(NNUDictionary *dict)
 {
     free(dict->tables);
     free(dict->D);
+    free(dict->D_mean);
     free(dict->Vt);
     free(dict->VD);
     free(dict);

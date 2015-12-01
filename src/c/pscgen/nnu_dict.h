@@ -18,6 +18,7 @@ typedef struct NNUDictionary {
     
     uint16_t *tables; /* nnu lookup tables (stores candidates)*/
     double *D; /* learned dictionary */
+    double *D_mean; /*colwise mean of D */
     int D_rows; /* rows in ldict */
     int D_cols; /* cols in ldict */
     double *Vt; /* Vt from SVD(D) -- taking alpha columns */

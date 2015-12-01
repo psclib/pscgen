@@ -7,6 +7,7 @@
 #include <string.h>
 #include <stdint.h>
 #include <time.h>
+#include <math.h>
 
 #define MAX(a,b) ((a) > (b) ? a : b)
 #define MIN(a,b) ((a) < (b) ? a : b)
@@ -42,6 +43,16 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
 /* indexing functions */
 int idx2d(int i, int j, int rows);
 int idx3d(int i, int j, int k, int rows, int cols);
+
+/* classification pipeline functions */
+int compute_num_sliding_windows(int N, int ws, int ss);
+void sliding_window(double *X, double *window_X, int N, int ws, int ss);
+void normalize_colwise(double *X, int rows, int cols);
+double norm(double *X, int N);
+void subtract_colwise(double *X, double *Y, int rows, int cols);
+void bag_of_words(int *X, double *bag_X, int N, int max_len);
+double* mean_colwise(double *X, int rows, int cols);
+
 
 /* misc math */
 int ipow(int base, int exp);
