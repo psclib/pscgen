@@ -172,6 +172,10 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
     word_t *atom_idxs;
     double max_coeff, *D, *VX;
 
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
     D_rows = dict->D_rows;
     D_cols = dict->D_cols;
     s_stride = storage_stride(dict->storage);
@@ -217,6 +221,40 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
 
 	return ret;
 }
+
+/* NNU lookup for input vector X */
+int nnu_single(NNUDictionary *dict, double *X, int X_rows)
+{
+    double *VX;
+    int N;
+    int max_idx = 0;
+    int total_ab = 0;
+    int D_rows = dict->D_rows;
+    int D_cols = dict->D_cols;
+    int s_stride = storage_stride(dict->storage);
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+    double max_coeff = 0.0;
+
+    word_t* atom_idxs = bit_vector(D_cols);
+    int *candidate_set = (int *)calloc(dict->alpha*dict->beta, sizeof(int));
+    double *D = dict->D;
+
+    VX = blas_dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                       X_cols); 
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
+                candidate_set, &N, dict->alpha, dict->beta, s_stride);
+    compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
+                        d_viewcol(X, 0, X_rows), candidate_set, D_rows, N);
+
+
+    /* clean-up */
+    free(atom_idxs);
+    free(candidate_set);
+    free(VX);
+
+	return max_idx;
+}
+
 
 /* NNU candidate lookup using the generated tables */
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,

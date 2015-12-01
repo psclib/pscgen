@@ -8,6 +8,7 @@ from sklearn.svm import SVC
 from scikits.audiolab import wavread
 
 from pscgen import NNU, name_to_storage
+import pscgen
 import utilities as util
 
 def wav_to_np(folder_path, window_size=100, slide_size=12):
@@ -103,6 +104,13 @@ args = json.loads(sys.argv[1])
 storage = name_to_storage(args['storage'])
 KMeans_tr_size = 200000
 X, Y = read_dataset(args['tr_folder_path'], args['dtype'])
+
+
+pipe = pscgen.Pipeline(100, 12)
+pipe.fit(X, Y, args['D_atoms'], args['alpha'], args['beta'], storage)
+
+assert False
+
 X_Kmeans = np.vstack(X)[:KMeans_tr_size]
 
 # Train D using KMeans

@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 #include <Python.h>
 #include <structmember.h>
 #include <numpy/arrayobject.h>
@@ -92,6 +93,7 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
+    PyObject *D_mean = d_to_pobj(dict->D_mean, dict->D_cols);
     PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
     PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*USHRT_MAX);
@@ -99,8 +101,9 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
 
     //Error handling
-    if(!D || !Vt || !VD || !tables || !D_rows || !D_cols) {
+    if(!D || !D_mean || !Vt || !VD || !tables || !D_rows || !D_cols) {
         Py_DECREF(D);
+        Py_DECREF(D_mean);
         Py_DECREF(Vt);
         Py_DECREF(VD);
         Py_DECREF(tables);
@@ -112,11 +115,12 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
     //Pack return tuple
     PyTuple_SetItem(result, 0, D);
-    PyTuple_SetItem(result, 1, D_rows);
-    PyTuple_SetItem(result, 2, D_cols);
-    PyTuple_SetItem(result, 3, tables);
-    PyTuple_SetItem(result, 4, Vt);
-    PyTuple_SetItem(result, 5, VD);
+    PyTuple_SetItem(result, 1, D_mean);
+    PyTuple_SetItem(result, 2, D_rows);
+    PyTuple_SetItem(result, 3, D_cols);
+    PyTuple_SetItem(result, 4, tables);
+    PyTuple_SetItem(result, 5, Vt);
+    PyTuple_SetItem(result, 6, VD);
 
     //clean-up
     delete_dict(dict);
@@ -159,6 +163,7 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
     //Convert buffers to pyobjects
     PyObject *D = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
+    PyObject *D_mean = d_to_pobj(dict->D, dict->D_rows*dict->D_cols);
     PyObject *Vt = d_to_pobj(dict->Vt, dict->alpha*s_stride * dict->D_rows);
     PyObject *VD = d_to_pobj(dict->VD, dict->alpha*s_stride * dict->D_cols);
     PyObject *tables = uint16_to_pobj(dict->tables, alpha*beta*dict->gamma);
@@ -166,8 +171,9 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
     PyObject *D_cols = PyInt_FromLong(dict->D_cols);
 
     //Error handling
-    if(!D || !Vt || !VD || !tables || !D_rows || !D_cols) {
+    if(!D || !D_mean || !Vt || !VD || !tables || !D_rows || !D_cols) {
         Py_DECREF(D);
+        Py_DECREF(D_mean);
         Py_DECREF(Vt);
         Py_DECREF(VD);
         Py_DECREF(tables);
@@ -179,11 +185,12 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
     //Pack return tuple
     PyTuple_SetItem(result, 0, D);
-    PyTuple_SetItem(result, 1, D_rows);
-    PyTuple_SetItem(result, 2, D_cols);
-    PyTuple_SetItem(result, 3, tables);
-    PyTuple_SetItem(result, 4, Vt);
-    PyTuple_SetItem(result, 5, VD);
+    PyTuple_SetItem(result, 1, D_mean);
+    PyTuple_SetItem(result, 2, D_rows);
+    PyTuple_SetItem(result, 3, D_cols);
+    PyTuple_SetItem(result, 4, tables);
+    PyTuple_SetItem(result, 5, Vt);
+    PyTuple_SetItem(result, 6, VD);
 
     //clean-up
     delete_dict(dict);
@@ -270,6 +277,7 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
     //clean-up
     free(nbrs);
     Py_DECREF(D_array);
+    Py_DECREF(D_mean_array);
     Py_DECREF(tables_array);
     Py_DECREF(Vt_array);
     Py_DECREF(VD_array);
@@ -281,22 +289,174 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
 
 static PyObject* p_generate(PyObject *self, PyObject *args)
 {
-    int alpha, beta, D_rows, max_D_cols, storage;
+    int ws, ss, num_features, num_classes, alpha, beta, gamma, storage, D_rows,
+        D_cols;
     const char *output_path;
+    PyObject *coef_obj, *intercept_obj, *D_obj, *D_mean_obj, *tables_obj,
+             *Vt_obj, *VD_obj;
 
-    if(!PyArg_ParseTuple(args, "iiiiis", &alpha, &beta, &D_rows, &max_D_cols,
-                         &storage, &output_path))
+    if(!PyArg_ParseTuple(args, "siiiiOOiiiiOiiOOOO", &output_path, &ws,
+                         &ss, &num_features, &num_classes, &coef_obj, 
+                         &intercept_obj, &alpha, &beta, &gamma, &storage,
+                         &D_obj, &D_rows, &D_cols, &D_mean_obj, &tables_obj,
+                         &Vt_obj, &VD_obj))
         return NULL;
 
-    //Internal call
-    /* char *nnu_str = generate_nnu_str(output_path, alpha, beta, D_rows, max_D_cols, storage); */
+
+
+    PyObject *coef_array = PyArray_FROM_OTF(coef_obj, NPY_DOUBLE,
+                                            NPY_IN_ARRAY);
+    PyObject *intercept_array = PyArray_FROM_OTF(intercept_obj, NPY_DOUBLE,
+                                                 NPY_IN_ARRAY);
+    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *D_mean_array = PyArray_FROM_OTF(D_mean_obj, NPY_DOUBLE,
+                                              NPY_IN_ARRAY);
+    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_UINT16,
+                                              NPY_IN_ARRAY);
+    PyObject *Vt_array = PyArray_FROM_OTF(Vt_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *VD_array = PyArray_FROM_OTF(VD_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+
+
+    //Error handling
+    if(!coef_array || !intercept_array || !D_array || !D_mean_array ||
+       !tables_array || !Vt_array || !VD_array) {
+        Py_XDECREF(coef_array);
+        Py_XDECREF(intercept_array);
+        Py_XDECREF(D_array);
+        Py_XDECREF(D_mean_array);
+        Py_XDECREF(tables_array);
+        Py_XDECREF(Vt_array);
+        Py_XDECREF(VD_array);
+        return NULL;
+    }
+
+    //Get pointers to the data
+    double *coef = (double*)PyArray_DATA(coef_array);
+    double *intercept = (double*)PyArray_DATA(intercept_array);
+    double *D = (double*)PyArray_DATA(D_array);
+    double *D_mean = (double*)PyArray_DATA(D_mean_array);
+    uint16_t *tables = (uint16_t*)PyArray_DATA(tables_array);
+    double *Vt = (double*)PyArray_DATA(Vt_array);
+    double *VD = (double*)PyArray_DATA(VD_array);
+
+    /* create NNUDictionary */
+    NNUDictionary dict = {alpha, beta, gamma, storage, tables, D,
+                          D_mean, D_rows, D_cols, Vt, VD};
+
+
+    /* create SVM */
+    SVM *svm = new_svm(num_features, num_classes, coef, intercept);
+
+    /* create pipeline */
+    Pipeline *pipeline = new_pipeline(&dict, svm, ws, ss);
+    
+    char *output_str = pipeline_to_str(pipeline);
+    FILE *output_fp = fopen(output_path, "w+");  
+    fprintf(output_fp, "%s", output_str);
+    fclose(output_fp);
+
+    delete_pipeline(pipeline);    
+    delete_svm(svm);
+    free(output_str);
+
+    Py_DECREF(coef_array);
+    Py_DECREF(intercept_array);
+    Py_DECREF(D_array);
+    Py_DECREF(D_mean_array);
+    Py_DECREF(tables_array);
+    Py_DECREF(Vt_array);
+    Py_DECREF(VD_array);
+
 
     return Py_BuildValue("");
 }
 
 static PyObject* p_classify(PyObject *self, PyObject *args)
 {
-    return Py_BuildValue("");
+    int X_rows, ws, ss, num_features, num_classes, alpha, beta, gamma,
+        storage, D_rows, D_cols;
+    PyObject *X_obj, *coef_obj, *intercept_obj, *D_obj, *D_mean_obj,
+             *tables_obj, *Vt_obj, *VD_obj;
+
+    if(!PyArg_ParseTuple(args, "OiiiiiOOiiiiOiiOOOO", &X_obj, &X_rows, &ws,
+                         &ss, &num_features, &num_classes, &coef_obj, 
+                         &intercept_obj, &alpha, &beta, &gamma, &storage,
+                         &D_obj, &D_rows, &D_cols, &D_mean_obj, &tables_obj,
+                         &Vt_obj, &VD_obj))
+        return NULL;
+
+
+    PyObject *X_array = PyArray_FROM_OTF(X_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *coef_array = PyArray_FROM_OTF(coef_obj, NPY_DOUBLE,
+                                            NPY_IN_ARRAY);
+    PyObject *intercept_array = PyArray_FROM_OTF(intercept_obj, NPY_DOUBLE,
+                                                 NPY_IN_ARRAY);
+    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *D_mean_array = PyArray_FROM_OTF(D_mean_obj, NPY_DOUBLE,
+                                              NPY_IN_ARRAY);
+    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_UINT16,
+                                              NPY_IN_ARRAY);
+    PyObject *Vt_array = PyArray_FROM_OTF(Vt_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *VD_array = PyArray_FROM_OTF(VD_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+
+
+    //Error handling
+    if(!X_array || !coef_array || !intercept_array || !D_array ||
+       !D_mean_array || !tables_array || !Vt_array || !VD_array) {
+        Py_XDECREF(X_array);
+        Py_XDECREF(coef_array);
+        Py_XDECREF(intercept_array);
+        Py_XDECREF(D_array);
+        Py_XDECREF(D_mean_array);
+        Py_XDECREF(tables_array);
+        Py_XDECREF(Vt_array);
+        Py_XDECREF(VD_array);
+        return NULL;
+    }
+
+    //Get pointers to the data
+    double *X = (double*)PyArray_DATA(X_array);
+    double *coef = (double*)PyArray_DATA(coef_array);
+    double *intercept = (double*)PyArray_DATA(intercept_array);
+    double *D = (double*)PyArray_DATA(D_array);
+    double *D_mean = (double*)PyArray_DATA(D_mean_array);
+    uint16_t *tables = (uint16_t*)PyArray_DATA(tables_array);
+    double *Vt = (double*)PyArray_DATA(Vt_array);
+    double *VD = (double*)PyArray_DATA(VD_array);
+
+    /* create NNUDictionary */
+    NNUDictionary dict = {alpha, beta, gamma, storage, tables, D,
+                          D_mean, D_rows, D_cols, Vt, VD};
+
+
+    /* create SVM */
+    SVM *svm = new_svm(num_features, num_classes, coef, intercept);
+
+    /* create pipeline */
+    Pipeline *pipeline = new_pipeline(&dict, svm, ws, ss);
+    
+    int ret = classification_pipeline(X, X_rows, pipeline);
+    delete_pipeline(pipeline);    
+    delete_svm(svm);
+
+    PyObject *result = PyTuple_New(1);
+    if(!result)
+        return NULL;
+
+    //create return object
+    PyObject *ret_obj = PyInt_FromLong(ret);
+    PyTuple_SetItem(result, 0, ret_obj);
+
+    Py_DECREF(coef_array);
+    Py_DECREF(intercept_array);
+    Py_DECREF(D_array);
+    Py_DECREF(D_mean_array);
+    Py_DECREF(tables_array);
+    Py_DECREF(Vt_array);
+    Py_DECREF(VD_array);
+    Py_DECREF(X_array);
+
+    return result;
 }
 
 

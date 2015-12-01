@@ -1,4 +1,6 @@
 /* Static version of Pipeline -- used for standalone embedded apps */
+#ifndef STANDALONE_H
+#define STANDALONE_H
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
@@ -646,3 +648,4 @@ int classification_pipeline(double *X, int x_len, Pipeline *pipeline)
 
     return classify(pipeline->bag_X, pipeline->svm);
 }
+#endif /* STANDALONE_H */

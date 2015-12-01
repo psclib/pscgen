@@ -40,6 +40,7 @@ NNUDictionary* load_dict(char *filepath);
 /* Search algorithms */
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
          int X_cols, double *avg_ab);
+int nnu_single(NNUDictionary *dict, double *X, int X_rows);
 double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols);
 double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K);
 

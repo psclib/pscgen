@@ -114,32 +114,27 @@ class NNU(object):
                                              self.gamma_exp, self.storage,
                                              filepath, delimiter)
         self.D = np.array(ret[0])
-        self.D_rows = ret[1]
-        self.D_cols = ret[2]
-        self.tables = np.array(ret[3], dtype=np.uint16)
-        self.Vt = np.array(ret[4])
-        self.VD = np.array(ret[5])
+        self.D_mean = np.array(ret[1])
+        self.D_rows = ret[2]
+        self.D_cols = ret[3]
+        self.tables = np.array(ret[4], dtype=np.uint16)
+        self.Vt = np.array(ret[5])
+        self.VD = np.array(ret[6])
 
     def build_index(self, D):
         '''
         Creates an nnu index from a numpy array
         '''
-        #normalize D
-        D = normalize(D)
-
-        #subtract mean
-        self.D_mean = np.mean(D, axis=0)
-        D = D - self.D_mean
-
         D_rows, D_cols = D.shape
         ret = pscgen_c.build_index(self.alpha, self.beta, self.gamma_exp,
                                    self.storage, D.flatten(), D_cols, D_rows)
         self.D = np.array(ret[0])
-        self.D_rows = ret[1]
-        self.D_cols = ret[2]
-        self.tables = np.array(ret[3], dtype=np.uint16)
-        self.Vt = np.array(ret[4])
-        self.VD = np.array(ret[5])
+        self.D_mean = np.array(ret[1])
+        self.D_rows = ret[2]
+        self.D_cols = ret[3]
+        self.tables = np.array(ret[4], dtype=np.uint16)
+        self.Vt = np.array(ret[5])
+        self.VD = np.array(ret[6])
 
 
     def index(self, X, alpha=None, beta=None, detail=False):
@@ -175,12 +170,6 @@ class NNU(object):
             print msg
             assert False
 
-        #normalize X
-        X = normalize(X)
-
-        #subtract D mean
-        X = X - self.D_mean
-
         X = np.ascontiguousarray(X.flatten())
         ret = pscgen_c.index(alpha, beta, self.alpha, self.beta, self.gamma,
                              self.storage, self.D, self.D_rows, self.D_cols,
@@ -209,9 +198,15 @@ class NNU(object):
         return nnu_dict
 
 class Pipeline(object):
-    def __init__(self):
+    def __init__(self, ws, ss):
         self.nnu = None
         self.svm = None
+        self.ws = ws
+        self.ss = ss
+        self.coef = None
+        self.num_features = None
+        self.num_classes = None
+        self.intercept = None
         self.KMeans_tr_size = 200000
 
     def fit(self, X, Y, D_atoms, alpha, beta, storage):
@@ -219,23 +214,38 @@ class Pipeline(object):
         D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
         D.fit(X_Kmeans)
         D = D.cluster_centers_
-        D = util.normalize(D)
-        D_mean = np.mean(D, axis=0)
-        D = D - D_mean
+
+        self.nnu = NNU(alpha, beta, storage)
+        self.nnu.build_index(D)
 
         svm_X = []
         for x in X:
-            x = util.normalize(x)
-            x = x - D_mean
-            nbrs = np.argmax(np.abs(np.dot(D, x.T)), axis=0)
+            nbrs = self.nnu.index(x)
             svm_X.append(util.bow(nbrs, D_atoms))
 
         self.svm = SVC(kernel='linear')
         self.svm.fit(svm_X, Y)
+        self.coef = np.ascontiguousarray(self.svm.coef_.T.flatten())
+        self.intercept = np.ascontiguousarray(self.svm.intercept_.flatten())
+        self.num_classes = len(self.svm.classes_)
+        self.num_features = D_atoms
 
-        self.nnu = NNU(alpha, beta, storage)
-        self.nnu.build_index(D)
-       
+               
+    def generate(self, output_path):
+        return pscgen_c.generate(output_path, self.ws, self.ss,
+                                 self.num_features, self.num_classes,
+                                 self.coef, self.intercept, self.nnu.alpha,
+                                 self.nnu.beta, self.nnu.gamma,
+                                 self.nnu.storage, self.nnu.D, self.nnu.D_rows,
+                                 self.nnu.D_cols, self.nnu.D_mean,
+                                 self.nnu.tables, self.nnu.Vt, self.nnu.VD)
 
     def classify(self, X):
-        return pscgen_c.classify(X, self.nnu, self.svm)
+        X = np.ascontiguousarray(X)
+        return pscgen_c.classify(X, len(X), self.ws, self.ss,
+                                 self.num_features, self.num_classes,
+                                 self.coef, self.intercept, self.nnu.alpha,
+                                 self.nnu.beta, self.nnu.gamma,
+                                 self.nnu.storage, self.nnu.D, self.nnu.D_rows,
+                                 self.nnu.D_cols, self.nnu.D_mean,
+                                 self.nnu.tables, self.nnu.Vt, self.nnu.VD)[0]

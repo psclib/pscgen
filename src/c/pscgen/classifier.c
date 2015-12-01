@@ -23,8 +23,6 @@ SVM* new_svm(int num_features, int num_classes, double *coefs,
 void delete_svm(SVM *svm)
 {
     free(svm->wins);
-    free(svm->coefs);
-    free(svm->intercepts);
     free(svm);
 }
 

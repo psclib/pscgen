@@ -18,5 +18,6 @@ typedef struct Pipeline {
 
 Pipeline* new_pipeline(NNUDictionary *nnu, SVM *svm, int ws, int ss);
 void delete_pipeline(Pipeline *pipeline);
+int classification_pipeline(double *X, int x_len, Pipeline *pipeline);
 
 #endif /* PIPELINE_H */

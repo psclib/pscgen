@@ -3,7 +3,7 @@ file(COPY . DESTINATION .)
 
 set(libsrc pscgen/util.c pscgen/nnu_storage.c pscgen/nnu_dict.c
     pscgen/linalg/linalg.c pscgen/generator.c pscgen/classifier.c
-    pscgen/pipeline.c)
+    pscgen/pipeline.c pscgen/standalone_char.c)
 
 add_library(pscgen_shared SHARED ${libsrc})
 add_library(pscgen STATIC ${libsrc})
