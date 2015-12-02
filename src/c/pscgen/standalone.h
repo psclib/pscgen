@@ -580,60 +580,27 @@ typedef struct SVM {
     int num_classes;
     int num_clfs;
     
-    int *wins;
     double *coefs;
     double *intercepts;
 } SVM;
 
-void class_idxs(int idx, int num_classes, int *c1, int *c2)
-{
-    int i, j, curr_idx;
-
-    curr_idx = 0;
-    for(i = 0; i < num_classes; i++) {
-        for(j = i + 1; j < num_classes; j++) {
-            if(idx == curr_idx) {
-                *c1 = i;
-                *c2 = j;
-                return;
-            }
-            curr_idx++;
-        }
-    }
-}
-
 int classify(double *X, SVM *svm)
 {
-    int i, c1, c2, max_wins, max_class_idx;
-    double *coef_col;
+    int i, max_class_idx;
+    double *coef_col, max_coef, tmp_coef;
 
-    c1 = c2 = max_wins = max_class_idx = 0;
-
-    /* Clear wins */
-    memset(svm->wins, 0, svm->num_classes);
-
-    /* Do one v. one classification */
     for(i = 0; i < svm->num_clfs; i++) {
-        class_idxs(i, svm->num_classes, &c1, &c2);
         coef_col = d_viewcol(svm->coefs, i, svm->num_features);
-        if(d_dot(coef_col, X, svm->num_features )+ svm->intercepts[i] > 0) {
-            svm->wins[c1]++;
-        }
-        else {
-            svm->wins[c2]++;
-        }
-    }
-
-    /* Find winner */
-    for(i = 0; i < svm->num_classes; i++) {
-        if(svm->wins[i] > max_wins) {
-            max_wins = svm->wins[i];
+        tmp_coef = d_dot(coef_col, X, svm->num_features) + svm->intercepts[i];
+        if(i == 0 || tmp_coef > max_coef) {
+            max_coef = tmp_coef;
             max_class_idx = i;
         }
     }
 
     return max_class_idx;
 }
+
 
 typedef struct Pipeline {
     int ws;

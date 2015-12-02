@@ -159,7 +159,6 @@ D_mean = np.mean(D, axis=0)
 D = D - D_mean
 
 #TODO: update to use D
-
 svm_X = []
 for x in X:
     x = util.normalize(x)

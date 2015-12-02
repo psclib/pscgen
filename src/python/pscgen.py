@@ -1,7 +1,7 @@
 import cPickle
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans as KMeans
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 import utilities as util
 import pscgen_c
@@ -234,7 +234,11 @@ class Pipeline(object):
         self.KMeans_tr_size = 200000
 
     def fit(self, X, Y, D_atoms, alpha, beta, storage):
-        X_Kmeans = np.vstack(X)[:self.KMeans_tr_size]
+        X_window = []
+        for x in X:
+            X_window.append(util.sliding_window(x, self.ws, self.ss))
+
+        X_Kmeans = np.vstack(X_window)[:self.KMeans_tr_size]
         D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
         D.fit(X_Kmeans)
         D = D.cluster_centers_
@@ -243,11 +247,11 @@ class Pipeline(object):
         self.nnu.build_index(D)
 
         svm_X = []
-        for x in X:
+        for x in X_window:
             nbrs = self.nnu.index(x)
             svm_X.append(util.bow(nbrs, D_atoms))
 
-        self.svm = SVC(kernel='linear')
+        self.svm = LinearSVC()
         self.svm.fit(svm_X, Y)
         self.coef = np.ascontiguousarray(self.svm.coef_.flatten())
         self.intercept = np.ascontiguousarray(self.svm.intercept_.flatten())
