@@ -218,7 +218,7 @@ double* dmm_prod(double *A, double *B, int A_rows, int A_cols, int B_rows,
                  int B_cols)
 {
     int i, j, k;
-    double *ret = (double *)malloc(sizeof(double) * A_rows * B_cols);
+    double *ret = (double *)calloc(A_rows*B_cols, sizeof(double));
     for(i = 0; i < A_rows; i++) {
         for(j = 0; j < B_cols; j++) {
             for(k = 0; k < A_cols; k++) {

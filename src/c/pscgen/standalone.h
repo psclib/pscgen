@@ -4,7 +4,29 @@
 #include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
-#include <math.h>
+
+/* cmath functions */
+double sqrt(double num) 
+{ 
+    if(num >= 0) { 
+        double x = num; 
+        int i; 
+
+        for(i = 0; i < 20; i ++) { 
+            x = (((x * x) + num) / (2 * x)); 
+        } 
+
+        return x; 
+    } 
+
+    return 0;
+}
+
+double fabs(double n)
+{
+    const double ret[2] = { n, -n };
+    return ret [n<0];
+}
 
 
 typedef uint32_t word_t;
@@ -103,7 +125,6 @@ double norm(double *X, int N)
 
     return l2_norm;
 }
-
 
 
 void normalize_colwise(double *X, int rows, int cols)
@@ -539,6 +560,10 @@ int nnu(NNUDictionary *dict, double *X, int X_rows)
     double *D = dict->D;
     double VX[ALPHA*S_STRIDE] = {0};
 
+    /* zero-mean and unit norm input */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
     dmm_prod(dict->Vt, X, VX, dict->alpha*s_stride, dict->D_rows, X_rows,
              X_cols); 
     atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
@@ -590,8 +615,8 @@ int classify(double *X, SVM *svm)
     /* Do one v. one classification */
     for(i = 0; i < svm->num_clfs; i++) {
         class_idxs(i, svm->num_classes, &c1, &c2);
-        coef_col = d_viewcol(svm->coefs, i, svm->num_clfs);
-        if(d_dot(coef_col, X, svm->num_features) + svm->intercepts[i] > 0) {
+        coef_col = d_viewcol(svm->coefs, i, svm->num_features);
+        if(d_dot(coef_col, X, svm->num_features )+ svm->intercepts[i] > 0) {
             svm->wins[c1]++;
         }
         else {
@@ -609,8 +634,6 @@ int classify(double *X, SVM *svm)
 
     return max_class_idx;
 }
-
-
 
 typedef struct Pipeline {
     int ws;
@@ -631,17 +654,11 @@ int classification_pipeline(double *X, int x_len, Pipeline *pipeline)
 
     for(i = 0; i*pipeline->ss < x_len - pipeline->ws + 1; i++) {
         ith_window(X, pipeline->window_X, i, pipeline->ws, pipeline->ss);
-        normalize_colwise(pipeline->window_X, pipeline->ws, 1);
-        subtract_colwise(pipeline->window_X, pipeline->nnu->D_mean,
-                         pipeline->ws, 1);
-
         idx = nnu(pipeline->nnu, pipeline->window_X, pipeline->ws);
         pipeline->bag_X[idx] += 1.0;
     }
-
     
     l2_norm = norm(pipeline->bag_X, pipeline->nnu->D_cols);
-
     for(i = 0; i < pipeline->nnu->D_cols; i++) {
         pipeline->bag_X[i] /= l2_norm;
     }

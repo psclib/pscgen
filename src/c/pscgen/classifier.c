@@ -57,8 +57,8 @@ int classify(double *X, SVM *svm)
     /* Do one v. one classification */
     for(i = 0; i < svm->num_clfs; i++) {
         class_idxs(i, svm->num_classes, &c1, &c2);
-        coef_col = d_viewcol(svm->coefs, i, svm->num_clfs);
-        if(d_dot(coef_col, X, svm->num_features) + svm->intercepts[i] > 0) {
+        coef_col = d_viewcol(svm->coefs, i, svm->num_features);
+        if(d_dot(coef_col, X, svm->num_features )+ svm->intercepts[i] > 0) {
             svm->wins[c1]++;
         }
         else {

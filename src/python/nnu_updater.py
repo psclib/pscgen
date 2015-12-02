@@ -11,21 +11,46 @@ from pscgen import NNU, name_to_storage
 import pscgen
 import utilities as util
 
+def class_idx(N, num_classes):
+    '''Returns the two classes given an index N'''
+    idx = 0
+    for i in range(num_classes):
+        for j in range(i+1, num_classes):
+            if idx == N:
+                return i, j
+            
+            idx += 1
+
+def classify(X, coefs, intercepts, num_classes):
+    '''One-vs-One linear classification (X is a vector)'''
+    wins = np.zeros(num_classes)
+    for i in range(len(intercepts)):
+        mag = np.dot(coefs[i], X)
+        c1, c2 = class_idx(i, num_classes)
+        if mag + intercepts[i] > 0:
+            wins[c1] += 1
+        else:
+            wins[c2] += 1
+
+    return np.argmax(wins)
+
+
 def wav_to_np(folder_path, window_size=100, slide_size=12):
     if folder_path[-1] != '/':
         folder_path += '/'
 
-    X, Y = [], []
+    X, Y, X_normal = [], [], []
     files = glob.glob(folder_path + '*.wav')
     for f in files:
         data, sample_frequency,encoding = wavread(f)
+        X_normal.append(data[:, 0])
         data = np.array(list(util.sliding_window(data[:, 0], window_size,
                                                  slide_size)))
         f = f.split('/')[-1].split('_')[1]
         X.append(data)
         Y.append(f)
 
-    return X, Y
+    return X, Y, X_normal
 
 
 def read_dataset(folder_path, dtype, window_size=100, slide_size=12):
@@ -103,11 +128,22 @@ chunk_size (size in bytes, -1 for no chunks)
 args = json.loads(sys.argv[1])
 storage = name_to_storage(args['storage'])
 KMeans_tr_size = 200000
-X, Y = read_dataset(args['tr_folder_path'], args['dtype'])
+X, Y, X_normal = read_dataset(args['tr_folder_path'], args['dtype'])
 
 
 pipe = pscgen.Pipeline(100, 12)
 pipe.fit(X, Y, args['D_atoms'], args['alpha'], args['beta'], storage)
+
+cl1, cl2, cl3 = [], [], []
+for i in xrange(len(X)):
+    x = util.bow(pipe.nnu.index(X[i]), args['D_atoms'])
+    cl1.append(pipe.svm.predict(x)[0])
+    cl2.append(pipe.svm.classes_[classify(x, pipe.svm.coef_,
+                                 pipe.svm.intercept_, 13)])
+    cl3.append(pipe.classify(X_normal[i]))
+
+
+print len([i for i, j in zip(cl1, cl3) if i == j])
 
 assert False
 
