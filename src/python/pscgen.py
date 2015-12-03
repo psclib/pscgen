@@ -1,10 +1,18 @@
 import cPickle
+import sys
+
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans as KMeans
 from sklearn.svm import LinearSVC
+from functools import partial
 
-import utilities as util
+from sklearn.svm import SVC
+from sklearn.metrics import accuracy_score, confusion_matrix
+from sklearn.metrics.pairwise import chi2_kernel
+from numpy.lib.stride_tricks import as_strided as ast
+
 import pscgen_c
+
 
 def normalize(X):
     X = np.copy(X)
@@ -13,6 +21,199 @@ def normalize(X):
     X[nonzero] /= norms[nonzero][:, np.newaxis]
 
     return X
+
+
+def bow_list(xs, N):
+    xs_rep = []
+
+    for item in xs:
+        xs_rep.append(bow(item, minlength=N))
+
+    xs_rep = np.array(xs_rep)
+
+    return xs_rep
+
+
+def bow(xs, minlength):
+    counts = np.bincount(xs, minlength=minlength)
+    return counts/np.linalg.norm(counts)
+
+
+def file_len(fname):
+    with open(fname) as f:
+        for i, l in enumerate(f):
+            pass
+
+    return i + 1
+
+def predict_linear(tr_x, tr_y, t_x, t_y, batch=False, verbose=False):
+    max_acc = 0
+    tr_acc = 0
+    cm = None
+    tr_cm = None
+    tuned_c = None
+
+    #screen C
+    # for C in [0.01, 0.05, 0.1, 0.5, 1.0]:
+    for C in [0.1]:
+        if verbose:
+            print 'Training with C: ', C
+
+        clf = SVC(kernel='linear', C=C)
+        clf.fit(tr_x, tr_y)
+        y_pred = clf.predict(t_x)
+        new_acc = accuracy_score(t_y, y_pred)
+        if verbose:
+            print 'Acc: ', new_acc
+
+        if new_acc > max_acc:
+            tr_y_pred = clf.predict(tr_x)
+            tr_acc = accuracy_score(tr_y, tr_y_pred)
+            tr_cm = confusion_matrix(tr_y, tr_y_pred)
+            max_acc = new_acc
+            cm = confusion_matrix(t_y, y_pred)
+            tuned_c = C
+
+    if verbose:
+        print 'C: ', tuned_c
+        print 'Training'
+        print 'Accuracy:', tr_acc
+        print tr_cm
+        print ''
+
+        print 'Testing'
+        print 'Accuracy:', max_acc
+        print cm
+    else:
+        sys.stdout.write(str('%2.3f' % max_acc))
+
+
+def predict_chi2(tr_x, tr_y, t_x, t_y, batch=False, verbose=False):
+    max_acc = 0
+    tr_acc = 0
+    cm = None
+    tr_cm = None
+    tuned_c, tuned_gamma = None, None
+
+    #screen of gamma and C
+    for g in [0.01, 0.05, .1]:
+        for C in [1, 10, 100]:
+            clf = SVC(kernel=partial(chi2_kernel, gamma=g), C=C)
+            clf.fit(tr_x, tr_y)
+            y_pred = clf.predict(t_x)
+            new_acc = accuracy_score(t_y, y_pred)
+
+            if new_acc > max_acc:
+                tr_y_pred = clf.predict(tr_x)
+                tr_acc = accuracy_score(tr_y, tr_y_pred)
+                tr_cm = confusion_matrix(tr_y, tr_y_pred)
+                max_acc = new_acc
+                cm = confusion_matrix(t_y, y_pred)
+                tuned_c = C
+                tuned_gamma = g
+
+    if verbose:
+        print 'gamma, C: ', tuned_gamma, tuned_c
+        print 'Training'
+        print 'Accuracy:', tr_acc
+        print tr_cm
+        print ''
+
+        print 'Testing'
+        print 'Accuracy:', max_acc
+        print cm
+
+    return max_acc
+
+def norm_shape(shape):
+    '''
+    Normalize numpy array shapes so they're always expressed as a tuple, 
+    even for one-dimensional shapes.
+     
+    Parameters
+        shape - an int, or a tuple of ints
+     
+    Returns
+        a shape tuple
+    '''
+    try:
+        i = int(shape)
+        return (i,)
+    except TypeError:
+        # shape was not a number
+        pass
+ 
+    try:
+        t = tuple(shape)
+        return t
+    except TypeError:
+        # shape was not iterable
+        pass
+
+
+def sliding_window(a,ws,ss = None,flatten = True):
+    '''
+    Return a sliding window over a in any number of dimensions
+    Parameters:
+    a - an n-dimensional numpy array
+    ws - an int (a is 1D) or tuple (a is 2D or greater) representing the size 
+    of each dimension of the window
+    ss - an int (a is 1D) or tuple (a is 2D or greater) representing the 
+    amount to slide the window in each dimension. If not specified, it
+    defaults to ws.
+    flatten - if True, all slices are flattened, otherwise, there is an 
+    extra dimension for each dimension of the input.
+
+    Returns
+    an array containing each n-dimensional window from a
+    '''
+
+    if None is ss:
+        # ss was not provided. the windows will not overlap in any direction.
+        ss = ws
+    ws = norm_shape(ws)
+    ss = norm_shape(ss)
+
+    # convert ws, ss, and a.shape to numpy arrays so that we can do math in every 
+    # dimension at once.
+    ws = np.array(ws)
+    ss = np.array(ss)
+    shape = np.array(a.shape)
+
+    # ensure that ws, ss, and a.shape all have the same number of dimensions
+    ls = [len(shape),len(ws),len(ss)]
+    if 1 != len(set(ls)):
+        raise ValueError(\
+        'a.shape, ws and ss must all have the same length. They were %s' % str(ls))
+
+    # ensure that ws is smaller than a in every dimension
+    if np.any(ws > shape):
+        raise ValueError(\
+        'ws cannot be larger than a in any dimension.\
+a.shape was %s and ws was %s' % (str(a.shape),str(ws)))
+
+    # how many slices will there be in each dimension?
+    newshape = norm_shape(((shape - ws) // ss) + 1)
+    # the shape of the strided array will be the number of slices in each dimension
+    # plus the shape of the window (tuple addition)
+    newshape += norm_shape(ws)
+    # the strides tuple will be the array's strides multiplied by step size, plus
+    # the array's strides (tuple addition)
+    newstrides = norm_shape(np.array(a.strides) * ss) + a.strides
+    strided = ast(a,shape = newshape,strides = newstrides)
+    if not flatten:
+        return strided
+
+    # Collapse strided so that it has one more dimension than the window. I.e.,
+    # the new array is a flat list of slices.
+    meat = len(ws) if ws.shape else 0
+    firstdim = (np.product(newshape[:-meat]),) if ws.shape else ()
+    dim = firstdim + (newshape[-meat:])
+    # remove any dimensions with size 1
+    dim = filter(lambda i : i != 1,dim)
+    return strided.reshape(dim)
+
+
 
 
 class Storage_Scheme:
@@ -77,7 +278,7 @@ def name_to_storage(storage):
 
 
 class NNU(object):
-    def __init__(self, alpha, beta, storage):
+    def __init__(self, alpha, beta, storage, max_atoms):
         self.alpha = alpha
         self.beta = beta
         self.gamma_exp = storage_gamma_exp(storage)
@@ -90,6 +291,7 @@ class NNU(object):
         self.tables = None
         self.Vt = None
         self.VD = None
+        self.max_atoms = max_atoms
 
     def save(self, filepath):
         """save class as self.name.txt"""
@@ -112,7 +314,8 @@ class NNU(object):
         '''
         ret = pscgen_c.build_index_from_file(self.alpha, self.beta,
                                              self.gamma_exp, self.storage,
-                                             filepath, delimiter)
+                                             self.max_atoms, filepath,
+                                             delimiter)
         self.D = np.array(ret[0])
         self.D_mean = np.array(ret[1])
         self.D_rows = ret[2]
@@ -127,7 +330,8 @@ class NNU(object):
         '''
         D_rows, D_cols = D.shape
         ret = pscgen_c.build_index(self.alpha, self.beta, self.gamma_exp,
-                                   self.storage, D.flatten(), D_cols, D_rows)
+                                   self.storage, D_cols, D_rows,
+                                   self.max_atoms, D.flatten())
         self.D = np.array(ret[0])
         self.D_mean = np.array(ret[1])
         self.D_rows = ret[2]
@@ -172,8 +376,9 @@ class NNU(object):
 
         X = np.ascontiguousarray(X.flatten())
         ret = pscgen_c.index(alpha, beta, self.alpha, self.beta, self.gamma,
-                             self.storage, self.D, self.D_rows, self.D_cols,
-                             self.D_mean, self.tables, self.Vt, self.VD, X,
+                             self.storage, self.D_rows, self.D_cols,
+                             self.max_atoms, self.D, self.D_mean, 
+                             self.tables, self.Vt, self.VD, X,
                              X_cols, X_rows)
         runtime = eval(str(ret[1]) + '.' + str(ret[2])) 
 
@@ -182,7 +387,7 @@ class NNU(object):
         else:
             return ret[0]
 
-    def index_single(self, X):
+    def index_single(self, X, enc_type):
         '''
         Index into nnu tables.
 
@@ -198,10 +403,12 @@ class NNU(object):
             assert False
 
         X = np.ascontiguousarray(X.flatten())
-        ret = pscgen_c.index(self.alpha, self.beta, self.alpha, self.beta, self.gamma,
-                             self.storage, self.D, self.D_rows, self.D_cols,
-                             self.D_mean, self.tables, self.Vt, self.VD, X,
-                             X_cols, 1)
+        ret = pscgen_c.index_single(enc_type, self.alpha, self.beta,
+                                    self.alpha, self.beta, self.gamma,
+                                    self.storage, self.D_rows, self.D_cols,
+                                    self.max_atoms, self.D, self.D_mean,
+                                    self.tables, self.Vt, self.VD, X,
+                                    X_cols, 1)
 
         return ret[0]
 
@@ -222,7 +429,7 @@ class NNU(object):
         return nnu_dict
 
 class Pipeline(object):
-    def __init__(self, ws, ss):
+    def __init__(self, ws, ss, max_classes):
         self.nnu = None
         self.svm = None
         self.ws = ws
@@ -230,26 +437,34 @@ class Pipeline(object):
         self.coef = None
         self.num_features = None
         self.num_classes = None
+        self.max_classes = None
         self.intercept = None
         self.KMeans_tr_size = 200000
+        self.enc_type = None
+        self.max_classes = max_classes
 
-    def fit(self, X, Y, D_atoms, alpha, beta, storage):
+    def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage,
+            enc_type='nnu'):
+        self.enc_type = enc_type
         X_window = []
         for x in X:
-            X_window.append(util.sliding_window(x, self.ws, self.ss))
+            X_window.append(sliding_window(x, self.ws, self.ss))
 
         X_Kmeans = np.vstack(X_window)[:self.KMeans_tr_size]
         D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
         D.fit(X_Kmeans)
         D = D.cluster_centers_
 
-        self.nnu = NNU(alpha, beta, storage)
+        self.nnu = NNU(alpha, beta, storage, max_atoms)
         self.nnu.build_index(D)
 
         svm_X = []
         for x in X_window:
-            nbrs = self.nnu.index(x)
-            svm_X.append(util.bow(nbrs, D_atoms))
+            nbrs = []
+            for xi in x:
+                new_nbrs = self.nnu.index_single(xi, enc_type=self.enc_type)
+                nbrs.extend(new_nbrs)
+            svm_X.append(bow(nbrs, D_atoms))
 
         self.svm = LinearSVC()
         self.svm.fit(svm_X, Y)
@@ -259,23 +474,26 @@ class Pipeline(object):
         self.num_features = D_atoms
 
                
-    def generate(self, output_path):
-        return pscgen_c.generate(output_path, self.ws, self.ss,
+    def generate(self, output_path, float_type='double'):
+        return pscgen_c.generate(output_path, self.enc_type, float_type,
+                                 self.ws, self.ss,
                                  self.num_features, self.num_classes,
-                                 self.coef, self.intercept, self.nnu.alpha,
-                                 self.nnu.beta, self.nnu.gamma,
-                                 self.nnu.storage, self.nnu.D, self.nnu.D_rows,
-                                 self.nnu.D_cols, self.nnu.D_mean,
+                                 self.max_classes, self.coef, self.intercept,
+                                 self.nnu.alpha, self.nnu.beta, self.nnu.gamma,
+                                 self.nnu.storage, self.nnu.D_rows,
+                                 self.nnu.D_cols, self.nnu.max_atoms,
+                                 self.nnu.D, self.nnu.D_mean,
                                  self.nnu.tables, self.nnu.Vt, self.nnu.VD)
 
     def classify(self, X):
         X = np.ascontiguousarray(X)
-        idx =  pscgen_c.classify(X, len(X), self.ws, self.ss,
+        idx =  pscgen_c.classify(self.enc_type, X, len(X), self.ws, self.ss,
                                  self.num_features, self.num_classes,
-                                 self.coef, self.intercept, self.nnu.alpha,
-                                 self.nnu.beta, self.nnu.gamma,
-                                 self.nnu.storage, self.nnu.D, self.nnu.D_rows,
-                                 self.nnu.D_cols, self.nnu.D_mean,
+                                 self.max_classes, self.coef, self.intercept,
+                                 self.nnu.alpha, self.nnu.beta, self.nnu.gamma,
+                                 self.nnu.storage, self.nnu.D_rows,
+                                 self.nnu.D_cols, self.nnu.max_atoms,
+                                 self.nnu.D, self.nnu.D_mean,
                                  self.nnu.tables, self.nnu.Vt, self.nnu.VD)[0]
 
         return self.svm.classes_[idx]

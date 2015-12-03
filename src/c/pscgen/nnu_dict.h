@@ -11,37 +11,44 @@
 
 /* NNU dictionary */
 typedef struct NNUDictionary {
-    int alpha; /* height of tables */
-    int beta;  /* width of tables */
+    int alpha; /* curr alpha */
+    int beta;  /* curr beta */
+    int max_alpha; /* height of tables */
+    int max_beta; /* width of tables */
     int gamma; /* depth of tables */
     Storage_Scheme storage; /*float representation of each index */
+    int D_rows; /* rows in D */
+    int D_cols; /* curr cols in D */
+    int max_atoms; /* max cols in D */
     
     uint16_t *tables; /* nnu lookup tables (stores candidates)*/
     double *D; /* learned dictionary */
     double *D_mean; /*colwise mean of D */
-    int D_rows; /* rows in ldict */
-    int D_cols; /* cols in ldict */
     double *Vt; /* Vt from SVD(D) -- taking alpha columns */
     double *VD; /* dot(Vt, d) */
 } NNUDictionary;
 
 /* Dynamically allocated NNUDictionary functionality */
-NNUDictionary* new_dict(const int alpha, const int beta,
+NNUDictionary* new_dict(const int alpha, const int beta, const int max_atoms,
                         Storage_Scheme storage, const char *input_csv_path,
                         const char *delimiters);
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
                                     Storage_Scheme storage, double *D,
-                                    int rows, int cols);
+                                    int rows, int cols, int max_atoms);
 void delete_dict(NNUDictionary *dict);
-void save_dict(char *filepath, NNUDictionary *dict);
-NNUDictionary* load_dict(char *filepath);
+/* void save_dict(char *filepath, NNUDictionary *dict); */
+/* NNUDictionary* load_dict(char *filepath); */
 
 
 /* Search algorithms */
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
          int X_cols, double *avg_ab);
 int nnu_single(NNUDictionary *dict, double *X, int X_rows);
+int nnu_single_nodot(NNUDictionary *dict, double *X, int X_rows, 
+                      int *candidate_set);
+int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows);
 double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols);
+int nns_single(NNUDictionary *dict, double *X, int X_rows);
 double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K);
 
 /* Helper functions */

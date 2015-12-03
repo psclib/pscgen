@@ -5,7 +5,7 @@
  * coefs (num_clfs * num_features)
  * intercepts (num_clfs)
  */
-SVM* new_svm(int num_features, int num_classes, double *coefs,
+SVM* new_svm(int num_features, int num_classes, int max_classes, double *coefs,
              double *intercepts)
 {
     SVM *svm;
@@ -13,6 +13,7 @@ SVM* new_svm(int num_features, int num_classes, double *coefs,
     svm->num_features = num_features;
     svm->num_classes = num_classes;
     svm->num_clfs = num_classes;
+    svm->max_classes = max_classes;
 
     svm->coefs = coefs;
     svm->intercepts = intercepts;
@@ -29,6 +30,8 @@ int classify(double *X, SVM *svm)
 {
     int i, max_class_idx;
     double *coef_col, max_coef, tmp_coef;
+
+    max_class_idx = 0;
 
     /* Do one v. rest classification */
     for(i = 0; i < svm->num_clfs; i++) {

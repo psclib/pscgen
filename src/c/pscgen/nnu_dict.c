@@ -1,7 +1,8 @@
 #include "nnu_dict.h"
 
 NNUDictionary* new_dict(const int alpha, const int beta,
-                        Storage_Scheme storage, const char *input_csv_path,
+                        const int max_atoms, Storage_Scheme storage,
+                        const char *input_csv_path,
                         const char *delimiters)
 {
     double *D;
@@ -11,12 +12,12 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     read_csv(input_csv_path, delimiters, &D, &rows, &cols);
 
     /* create NNUDictionary using read in file */
-    return new_dict_from_buffer(alpha, beta, storage, D, rows, cols);
+    return new_dict_from_buffer(alpha, beta, storage, D, rows, cols, max_atoms);
 }
 
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
                                     Storage_Scheme storage, double *D,
-                                    int rows, int cols)
+                                    int rows, int cols, int max_atoms)
 {
     int i, j, k, l, idx, gamma, table_idx, s_stride;
     int *idxs;
@@ -92,6 +93,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     dict->D_mean = D_mean; 
     dict->D_rows = rows;
     dict->D_cols = cols;
+    dict->max_atoms = max_atoms;
     dict->VD = VD;
     dict->Vt = Vt;
 
@@ -104,54 +106,54 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     return dict;
 }
 
-void save_dict(char *filepath, NNUDictionary *dict)
-{
-    int s_stride = storage_stride(dict->storage);
+/* void save_dict(char *filepath, NNUDictionary *dict) */
+/* { */
+/*     int s_stride = storage_stride(dict->storage); */
 
-    FILE *fp = fopen(filepath, "w+");
-    fwrite(&dict->alpha, sizeof(int), 1, fp);
-    fwrite(&dict->beta, sizeof(int), 1, fp);
-    fwrite(&dict->gamma, sizeof(int), 1, fp);
-    fwrite(&dict->storage, sizeof(Storage_Scheme), 1, fp);
-    fwrite(dict->tables, sizeof(uint16_t),
-           dict->alpha * dict->beta * dict->gamma, fp);
-    fwrite(&dict->D_rows, sizeof(int), 1, fp);
-    fwrite(&dict->D_cols, sizeof(int), 1, fp);
-    fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
-    fwrite(dict->Vt, sizeof(double), dict->alpha*s_stride * dict->D_rows, fp);
-    fwrite(dict->VD, sizeof(double), dict->alpha*s_stride * dict->D_cols, fp);
-    fclose(fp);
-}
+/*     FILE *fp = fopen(filepath, "w+"); */
+/*     fwrite(&dict->alpha, sizeof(int), 1, fp); */
+/*     fwrite(&dict->beta, sizeof(int), 1, fp); */
+/*     fwrite(&dict->gamma, sizeof(int), 1, fp); */
+/*     fwrite(&dict->storage, sizeof(Storage_Scheme), 1, fp); */
+/*     fwrite(dict->tables, sizeof(uint16_t), */
+/*            dict->alpha * dict->beta * dict->gamma, fp); */
+/*     fwrite(&dict->D_rows, sizeof(int), 1, fp); */
+/*     fwrite(&dict->D_cols, sizeof(int), 1, fp); */
+/*     fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp); */
+/*     fwrite(dict->Vt, sizeof(double), dict->alpha*s_stride * dict->D_rows, fp); */
+/*     fwrite(dict->VD, sizeof(double), dict->alpha*s_stride * dict->D_cols, fp); */
+/*     fclose(fp); */
+/* } */
 
-NNUDictionary* load_dict(char *filepath)
-{
+/* NNUDictionary* load_dict(char *filepath) */
+/* { */
 
-    int s_stride;
-    NNUDictionary *dict = (NNUDictionary *)malloc(sizeof(NNUDictionary));
-    FILE *fp = fopen(filepath, "r");
-    fread(&dict->alpha, sizeof(int), 1, fp);
-    fread(&dict->beta, sizeof(int), 1, fp);
-    fread(&dict->gamma, sizeof(int), 1, fp);
-    fread(&dict->storage, sizeof(Storage_Scheme), 1, fp);
-    s_stride = storage_stride(dict->storage);
-    dict->tables = (uint16_t *)malloc(sizeof(uint16_t) * dict->alpha *
-                                      dict->beta * dict->gamma);
-    fread(dict->tables, sizeof(uint16_t),
-          dict->alpha * dict->beta * dict->gamma, fp);
-    fread(&dict->D_rows, sizeof(int), 1, fp);
-    fread(&dict->D_cols, sizeof(int), 1, fp);
-    dict->D = (double *)malloc(sizeof(double) * dict->D_rows * dict->D_cols);
-    dict->Vt = (double *)malloc(sizeof(double) * dict->alpha*s_stride *
-                                dict->D_rows);
-    dict->VD = (double *)malloc(sizeof(double) * dict->alpha*s_stride *
-                                dict->D_cols);
-    fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp);
-    fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp);
-    fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp);
-    fclose(fp);
+/*     int s_stride; */
+/*     NNUDictionary *dict = (NNUDictionary *)malloc(sizeof(NNUDictionary)); */
+/*     FILE *fp = fopen(filepath, "r"); */
+/*     fread(&dict->alpha, sizeof(int), 1, fp); */
+/*     fread(&dict->beta, sizeof(int), 1, fp); */
+/*     fread(&dict->gamma, sizeof(int), 1, fp); */
+/*     fread(&dict->storage, sizeof(Storage_Scheme), 1, fp); */
+/*     s_stride = storage_stride(dict->storage); */
+/*     dict->tables = (uint16_t *)malloc(sizeof(uint16_t) * dict->alpha * */
+/*                                       dict->beta * dict->gamma); */
+/*     fread(dict->tables, sizeof(uint16_t), */
+/*           dict->alpha * dict->beta * dict->gamma, fp); */
+/*     fread(&dict->D_rows, sizeof(int), 1, fp); */
+/*     fread(&dict->D_cols, sizeof(int), 1, fp); */
+/*     dict->D = (double *)malloc(sizeof(double) * dict->D_rows * dict->D_cols); */
+/*     dict->Vt = (double *)malloc(sizeof(double) * dict->alpha*s_stride * */
+/*                                 dict->D_rows); */
+/*     dict->VD = (double *)malloc(sizeof(double) * dict->alpha*s_stride * */
+/*                                 dict->D_cols); */
+/*     fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp); */
+/*     fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp); */
+/*     fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp); */
+/*     fclose(fp); */
 
-    return dict;
-}
+/*     return dict; */
+/* } */
 
 
 void delete_dict(NNUDictionary *dict)
@@ -255,6 +257,71 @@ int nnu_single(NNUDictionary *dict, double *X, int X_rows)
 	return max_idx;
 }
 
+int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows)
+{
+    double *VX;
+    int N;
+    int max_idx = 0;
+    int total_ab = 0;
+    int D_cols = dict->D_cols;
+    int s_stride = storage_stride(dict->storage);
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+    double max_coeff = 0.0;
+
+    word_t* atom_idxs = bit_vector(D_cols);
+    int *candidate_set = (int *)calloc(dict->alpha*dict->beta, sizeof(int));
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
+
+    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                  X_cols); 
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
+                candidate_set, &N, dict->alpha, dict->beta, s_stride);
+    compute_max_dot_set(&max_coeff, &max_idx, &total_ab, dict->VD,
+                        VX, candidate_set, dict->alpha*s_stride, N);
+
+    /* clean-up */
+    free(atom_idxs);
+    free(candidate_set);
+    free(VX);
+
+	return max_idx;
+}
+
+
+/* NNU lookup for input vector X */
+int nnu_single_nodot(NNUDictionary *dict, double *X, int X_rows, 
+                      int *candidate_set)
+{
+    double *VX;
+    int N;
+    int D_cols = dict->D_cols;
+    int s_stride = storage_stride(dict->storage);
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+
+    word_t* atom_idxs = bit_vector(D_cols);
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
+    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                  X_cols); 
+
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
+                candidate_set, &N, dict->alpha, dict->beta, s_stride);
+
+    /* clean-up */
+    free(atom_idxs);
+    free(VX);
+
+	return N;
+}
+
+
 
 /* NNU candidate lookup using the generated tables */
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
@@ -283,6 +350,20 @@ void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
     }
 }
 
+int nns_single(NNUDictionary *dict, double *X, int X_rows)
+{
+    int D_rows = dict->D_rows;
+    int D_cols = dict->D_cols;
+    int max_idx = 0;
+    double max_coeff;
+    double *D = dict->D;
+
+    compute_max_dot(&max_coeff, &max_idx, D, d_viewcol(X, 0, X_rows),
+                    D_rows, D_cols);
+
+	return max_idx;
+}
+
 double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 {
     int D_rows = dict->D_rows;
@@ -301,7 +382,6 @@ double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols)
 
 	return ret;
 }
-
 
 double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K)
 {
@@ -337,8 +417,8 @@ double* mp(NNUDictionary *dict, double *X, int X_rows, int X_cols, int K)
 
 /* Computes the max dot product from candidate set with input sample x */
 void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
-                                double *D, double *x, int *candidate_set,
-                                int D_rows, int N)
+                         double *D, double *x, int *candidate_set,
+                         int D_rows, int N)
 {
     int i;
     double tmp_coeff = 0.0;

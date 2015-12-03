@@ -1,10 +1,11 @@
 #include "generator.h"
 
 void generate_nnu(const char *D_path, const char *output_path, const int alpha,
-                  const int beta, Storage_Scheme storage)
+                  const int beta, Storage_Scheme storage, const int max_atoms)
 {
     const char *delimiters = ",";
-    NNUDictionary *dict = new_dict(alpha, beta, storage, D_path, delimiters);
+    NNUDictionary *dict = new_dict(alpha, beta, max_atoms, storage, D_path,
+                                   delimiters);
     dict_to_file(dict, output_path);
     delete_dict(dict);
 }
@@ -33,7 +34,8 @@ void generate_empty_nnu(const char *output_path, const int alpha,
     delete_dict(dict);
 }
 
-char* pipeline_to_str(Pipeline *pipeline)
+char* pipeline_to_str(Pipeline *pipeline, const char *enc_type,
+                      const char *float_type)
 {
     int len, s_stride;
     int max_str_sz, str_sz;
@@ -54,29 +56,25 @@ char* pipeline_to_str(Pipeline *pipeline)
     str = (char *)malloc(sizeof(char) * str_sz);
     final_str = (char *)malloc(sizeof(char) * 2000000);
 
+    len += sprintf(final_str + len, "#ifndef STANDALONE_H\n");
+    len += sprintf(final_str + len, "#define STANDALONE_H\n");
+
     /* create #defines */
-    len += sprintf(final_str + len, "#define WS %d\n",
-                   pipeline->ws);
-    len += sprintf(final_str + len, "#define SS %d\n",
-                   pipeline->ss);
-    len += sprintf(final_str + len, "#define NUM_FEATURES %d\n",
-                   pipeline->svm->num_features);
-    len += sprintf(final_str + len, "#define NUM_CLASSES %d\n",
-                   pipeline->svm->num_classes);
-    len += sprintf(final_str + len, "#define NUM_CLFS %d\n", 
-                   pipeline->svm->num_clfs);
-    len += sprintf(final_str + len, "#define ALPHA %d\n", 
-                   pipeline->nnu->alpha);
-    len += sprintf(final_str + len, "#define BETA %d\n", pipeline->nnu->beta);
-    len += sprintf(final_str + len, "#define ATOMS %d\n",
-                   pipeline->nnu->D_cols);
+    len += sprintf(final_str + len, "#define FLOAT_T %s\n", float_type);
+    len += sprintf(final_str + len, "#define ENC_FUNC %s\n", enc_type);
+    len += sprintf(final_str + len, "#define MAX_ALPHA %d\n", 
+                   pipeline->nnu->max_alpha);
+    len += sprintf(final_str + len, "#define MAX_BETA %d\n",
+                   pipeline->nnu->max_beta);
+    len += sprintf(final_str + len, "#define MAX_ATOMS %d\n",
+                   pipeline->nnu->max_atoms);
     len += sprintf(final_str + len, "#define S_STRIDE %d\n", s_stride);
 
-    /* add STANDALONE_H */
-    len += sprintf(final_str + len, "%s\n", standalone_h);
+    /* add STANDALONE_TYPES_H */
+    len += sprintf(final_str + len, "%s\n", standalone_types_h);
 
     /* get nnu str */
-    nnu_str = dict_to_str(pipeline->nnu);
+    nnu_str = dict_to_str(pipeline->nnu, enc_type);
     len += sprintf(final_str + len, "%s\n", nnu_str);
 
     /* get svm str */
@@ -91,12 +89,12 @@ char* pipeline_to_str(Pipeline *pipeline)
 
     /* bag_X */
     double_buffer_to_str(output_str, "bag_X", pipeline->bag_X,
-                         pipeline->nnu->D_cols);
+                         pipeline->nnu->max_atoms);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
 
     /* header */
-    strcpy(output_str, "Pipeline pipeline = {");
+    strcpy(output_str, "Pipeline PIPELINE = {");
 
     /* ws */
     snprintf(str, str_sz, "%d", pipeline->ws);
@@ -112,6 +110,11 @@ char* pipeline_to_str(Pipeline *pipeline)
 
     len += sprintf(final_str + len, "%s", output_str);  
 
+    /* add STANDALONE_H */
+    len += sprintf(final_str + len, "%s\n", standalone_h);
+
+    len += sprintf(final_str + len, "#endif /* STANDALONE_H */");
+
     /* clean-up */
     free(output_str);
     free(str);
@@ -124,6 +127,7 @@ char* svm_to_str(SVM *svm)
     int len;
     int max_str_sz, str_sz;
     char *str, *output_str, *final_str;
+    double *tmp;
     
     len = 0;
 
@@ -140,16 +144,28 @@ char* svm_to_str(SVM *svm)
 
 
     /* coefs */
-    double_buffer_to_str(output_str, "coefs", svm->coefs,
-                         svm->num_clfs*svm->num_features);
+    tmp = (double *)calloc(svm->max_classes*svm->num_features, sizeof(double));
+    memcpy(tmp, svm->coefs, svm->num_classes*svm->num_features*sizeof(double));
+    double_buffer_to_str(output_str, "coefs", tmp,
+                         svm->max_classes*svm->num_features);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
+    free(tmp);
 
-    /* intercepts */
-    double_buffer_to_str(output_str, "intercepts", svm->intercepts,
-                         svm->num_clfs);
+        /* intercepts */
+    tmp = (double *)calloc(svm->max_classes, sizeof(double));
+    memcpy(tmp, svm->intercepts, svm->num_classes*sizeof(double));
+    printf("%d\n", svm->num_classes);
+
+    int q;
+    for(q = 0; q <13; q++)
+        printf("%f\n", svm->intercepts[q]);
+
+    double_buffer_to_str(output_str, "intercepts", tmp,
+                         svm->max_classes);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
+    free(tmp);
 
     /* header */
     strcpy(output_str, "SVM svm = {");
@@ -169,6 +185,11 @@ char* svm_to_str(SVM *svm)
     strcat(output_str, str);
     strcat(output_str, ",");
 
+    /* max_classes */
+    snprintf(str, str_sz, "%d", svm->max_classes);
+    strcat(output_str, str);
+    strcat(output_str, ",");
+
     strcat(output_str, "coefs,intercepts};");
 
     len += sprintf(final_str + len, "%s", output_str);  
@@ -181,11 +202,12 @@ char* svm_to_str(SVM *svm)
 }
 
 
-char* dict_to_str(NNUDictionary *dict)
+char* dict_to_str(NNUDictionary *dict, const char *enc_type)
 {
     int abg, int_width, float_width, s_stride, len;
-    int D_str_sz, table_str_sz, max_str_sz, str_sz;
+    int D_str_sz, table_str_sz, str_sz;
     char *str, *dict_str, *output_str, *final_str;
+    double *tmp;
 
     len = 0;
     s_stride = storage_stride(dict->storage);
@@ -201,29 +223,41 @@ char* dict_to_str(NNUDictionary *dict)
     /* compue is max buffer size */
     D_str_sz = dict->D_rows * dict->D_cols * float_width + 100;
     table_str_sz = abg * int_width + 100;
-    max_str_sz = D_str_sz > table_str_sz ? D_str_sz : table_str_sz;
 
     /* allocate str buffers */
-    output_str = (char *)malloc(sizeof(char) * max_str_sz);
-    dict_str = (char *)malloc(sizeof(char) * 1000);
+    output_str = (char *)malloc(sizeof(char) * 5000000);
+    dict_str = (char *)malloc(sizeof(char) * 10000);
     str = (char *)malloc(sizeof(char) * str_sz);
-    final_str = (char *)malloc(sizeof(char) * 1000000);
+    final_str = (char *)malloc(sizeof(char) * 5000000);
 
     /* tables */
-    uint16_buffer_to_str(output_str, "nnu_table", dict->tables, abg);
-    len += sprintf(final_str + len, "%s", output_str);  
-    len += sprintf(final_str + len, "\n");
+    if(strcmp(enc_type, "nnu") == 0 || strcmp(enc_type, "nnu_pca") == 0) {
+        uint16_buffer_to_str(output_str, "nnu_table", dict->tables, abg);
+        len += sprintf(final_str + len, "%s", output_str);  
+        len += sprintf(final_str + len, "\n");
+    } else {
+        len += sprintf(final_str + len, "uint16_t nnu_table[0];\n");  
+    }
 
     /* D */
-    double_buffer_to_str(output_str, "D", dict->D, dict->D_rows*dict->D_cols);
-    len += sprintf(final_str + len, "%s", output_str);  
-    len += sprintf(final_str + len, "\n");
+    if(strcmp(enc_type, "nnu") == 0 || strcmp(enc_type, "nns") == 0) {
+        tmp = (double *)calloc(dict->D_rows*dict->max_atoms, sizeof(double));
+        memcpy(tmp, dict->D, dict->D_rows*dict->D_cols*sizeof(double));
+        double_buffer_to_str(output_str, "D", tmp, dict->D_rows*dict->max_atoms);
+        len += sprintf(final_str + len, "%s", output_str);  
+        len += sprintf(final_str + len, "\n");
+        free(tmp);
+    } else {
+        len += sprintf(final_str + len, "FLOAT_T D[0];\n");  
+    }
 
     /* D_mean */
-    double_buffer_to_str(output_str, "D_mean", dict->D_mean, dict->D_cols);
+    tmp = (double *)calloc(dict->max_atoms, sizeof(double));
+    memcpy(tmp, dict->D_mean, dict->D_cols*sizeof(double));
+    double_buffer_to_str(output_str, "D_mean", tmp, dict->max_atoms);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
-
+    free(tmp);
 
     /* Vt */
     double_buffer_to_str(output_str, "Vt", dict->Vt,
@@ -232,11 +266,18 @@ char* dict_to_str(NNUDictionary *dict)
     len += sprintf(final_str + len, "\n");
 
     /* VD */
-    double_buffer_to_str(output_str, "VD", dict->VD,
-                         dict->alpha*s_stride*dict->D_cols);
-    len += sprintf(final_str + len, "%s", output_str);  
-    len += sprintf(final_str + len, "\n");
-
+    if(strcmp(enc_type, "nnu_pca") == 0) {
+        tmp = (double *)calloc(dict->alpha*s_stride*dict->max_atoms,
+                               sizeof(double));
+        memcpy(tmp, dict->VD, dict->alpha*s_stride*dict->D_cols*sizeof(double));
+        double_buffer_to_str(output_str, "VD", tmp,
+                             dict->alpha*s_stride*dict->max_atoms);
+        len += sprintf(final_str + len, "%s", output_str);  
+        len += sprintf(final_str + len, "\n");
+        free(tmp);
+    } else {
+        len += sprintf(final_str + len, "FLOAT_T VD[0];\n");  
+    }
 
     /* header */
     strcpy(dict_str, "NNUDictionary dict = {");
@@ -251,6 +292,16 @@ char* dict_to_str(NNUDictionary *dict)
     strcat(dict_str, str);
     strcat(dict_str, ",");
 
+    /* max_alpha */
+    snprintf(str, str_sz, "%d", dict->max_alpha);
+    strcat(dict_str, str);
+    strcat(dict_str, ",");
+
+    /* max_beta */
+    snprintf(str, str_sz, "%d", dict->max_beta);
+    strcat(dict_str, str);
+    strcat(dict_str, ",");
+
     /* gamma */
     snprintf(str, str_sz, "%d", dict->gamma);
     strcat(dict_str, str);
@@ -259,8 +310,6 @@ char* dict_to_str(NNUDictionary *dict)
     /* storage */
     strcat(dict_str, print_storage(dict->storage));
     strcat(dict_str, ",");
-
-    strcat(dict_str, "nnu_table,D,D_mean,");
 
     /* D_rows */
     snprintf(str, str_sz, "%d", dict->D_rows);
@@ -271,8 +320,13 @@ char* dict_to_str(NNUDictionary *dict)
     snprintf(str, str_sz, "%d", dict->D_cols);
     strcat(dict_str, str);
     strcat(dict_str, ",");
-  
-    strcat(dict_str, "Vt,VD};");
+
+    /* max_atoms */
+    snprintf(str, str_sz, "%d", dict->max_atoms);
+    strcat(dict_str, str);
+    strcat(dict_str, ",");
+
+    strcat(dict_str, "nnu_table,D,D_mean,Vt,VD};");
 
     len += sprintf(final_str + len, "%s", dict_str);  
 
@@ -360,7 +414,6 @@ void dict_to_file(NNUDictionary *dict, const char* output_path)
     fprintf(output_fp, "%s", output_str);  
     fprintf(output_fp, "\n");
 
-
     /* header */
     strcpy(dict_str, "NNUDictionary dict = {");
 
@@ -412,13 +465,13 @@ void double_buffer_to_str(char *output, const char *name, double *buf, int N)
     int i; 
     char *str = (char *)malloc(sizeof(char)*16);
 
-    sprintf(output, "double %s[%d] = {", name, N);
+    sprintf(output, "FLOAT_T %s[%d] = {", name, N);
     for(i = 0; i < N-1; i++) {
-        snprintf(str, 16, "%2.6f", buf[i]);
+        snprintf(str, 16, "%g", buf[i]);
         strcat(output, str);
         strcat(output, ",");
     }
-    snprintf(str, 16, "%2.6f", buf[i]);
+    snprintf(str, 16, "%g", buf[i]);
     strcat(output, str);
     strcat(output, "};");
 

@@ -1,15 +1,12 @@
-/* Static version of Pipeline -- used for standalone embedded apps */
-#ifndef STANDALONE_H
-#define STANDALONE_H
-#include <inttypes.h>
-#include <stdlib.h>
-#include <string.h>
+word_t ATOM_IDXS[MAX_ATOMS/32 + 1] = {0};
+int CANDIDATE_SET[MAX_ALPHA*MAX_BETA] = {0};
+FLOAT_T VX[MAX_ALPHA*S_STRIDE] = {0};
 
 /* cmath functions */
-double sqrt(double num) 
+FLOAT_T sqrt_(FLOAT_T num) 
 { 
     if(num >= 0) { 
-        double x = num; 
+        FLOAT_T x = num; 
         int i; 
 
         for(i = 0; i < 20; i ++) { 
@@ -22,15 +19,13 @@ double sqrt(double num)
     return 0;
 }
 
-double fabs(double n)
+FLOAT_T fabs_(FLOAT_T n)
 {
-    const double ret[2] = { n, -n };
+    const FLOAT_T ret[2] = { n, -n };
     return ret [n<0];
 }
 
 
-typedef uint32_t word_t;
-enum { WORD_SIZE = sizeof(word_t) * 8 };
 
 int bindex(int b)
 {
@@ -68,13 +63,13 @@ int idx3d(int i, int j, int k, int rows, int cols)
     return i * rows * cols + j * rows + k;
 }
 
-double* d_viewcol(double *mat, int col, int rows)
+FLOAT_T* d_viewcol(FLOAT_T *mat, int col, int rows)
 {
     return mat + idx2d(0, col, rows);
 }
 
 
-void dmm_prod(double *A, double *B, double *C, int A_rows, int A_cols,
+void dmm_prod(FLOAT_T *A, FLOAT_T *B, FLOAT_T *C, int A_rows, int A_cols,
               int B_rows, int B_cols)
 {
     int i, j, k;
@@ -89,10 +84,10 @@ void dmm_prod(double *A, double *B, double *C, int A_rows, int A_cols,
     }
 }
 
-double d_dot(double *X, double *Y, int N)
+FLOAT_T d_dot(FLOAT_T *X, FLOAT_T *Y, int N)
 {
     int i;
-    double ret = 0;
+    FLOAT_T ret = 0;
 
     for(i = 0; i < N; i++) {
         ret += X[i] * Y[i]; 
@@ -101,7 +96,7 @@ double d_dot(double *X, double *Y, int N)
     return ret;
 }
 
-void ith_window(double *X, double *window_X, int win_num, int ws, int ss)
+void ith_window(FLOAT_T *X, FLOAT_T *window_X, int win_num, int ws, int ss)
 {
     int i, s_amount;
     s_amount = ss * win_num;
@@ -112,32 +107,32 @@ void ith_window(double *X, double *window_X, int win_num, int ws, int ss)
 }
 
 
-double norm(double *X, int N)
+FLOAT_T norm(FLOAT_T *X, int N)
 {
     int i;
-    double l2_norm = 0.0;
+    FLOAT_T l2_norm = 0.0;
 
     for(i = 0; i < N; i++) {
         l2_norm += X[i] * X[i];
     }
 
-    l2_norm = sqrt(l2_norm);
+    l2_norm = sqrt_(l2_norm);
 
     return l2_norm;
 }
 
 
-void normalize_colwise(double *X, int rows, int cols)
+void normalize_colwise(FLOAT_T *X, int rows, int cols)
 {
     int i, j;
-    double l2_norm, *x;
+    FLOAT_T l2_norm, *x;
 
     for(i = 0; i < cols; i++) {
         x = d_viewcol(X, i, rows);
         l2_norm = norm(x, rows);
 
         /* if norm is eps 0, then continue */
-        if(fabs(l2_norm) < 1e-7) {
+        if(fabs_(l2_norm) < 1e-7) {
             continue;
         }
 
@@ -147,7 +142,7 @@ void normalize_colwise(double *X, int rows, int cols)
     }
 }
 
-void subtract_colwise(double *X, double *Y, int rows, int cols)
+void subtract_colwise(FLOAT_T *X, FLOAT_T *Y, int rows, int cols)
 {
     int i, j;
 
@@ -158,10 +153,10 @@ void subtract_colwise(double *X, double *Y, int rows, int cols)
     }
 }
 
-void bag_of_words(int *X, double *bag_X, int N, int max_len)
+void bag_of_words(int *X, FLOAT_T *bag_X, int N, int max_len)
 {
     int i;
-    double l2_norm;
+    FLOAT_T l2_norm;
     
     for(i = 0; i < max_len; i++) {
         bag_X[i] = 0.0;
@@ -178,16 +173,6 @@ void bag_of_words(int *X, double *bag_X, int N, int max_len)
     }
 }
 
-
-typedef enum
-{
-    half,
-    mini,
-    micro,
-    nano,
-    two_mini,
-    four_micro
-} Storage_Scheme;
 
 
 uint8_t float_to_nano(float i)
@@ -481,35 +466,39 @@ void storage_to_float(float *i, uint16_t y, Storage_Scheme s)
 }
 
 
-/* NNU dictionary */
-typedef struct NNUDictionary {
-    int alpha; /* height of tables */
-    int beta;  /* width of tables */
-    int gamma; /* depth of tables */
-    Storage_Scheme storage; /*float representation of each index */
-    
-    uint16_t *tables; /* nnu lookup tables (stores candidates)*/
-    double *D; /* learned dictionary */
-    double *D_mean; /*colwise mean of D */
-    int D_rows; /* rows in ldict */
-    int D_cols; /* cols in ldict */
-    double *Vt; /* Vt from SVD(D) -- taking alpha columns */
-    double *VD; /* dot(Vt, d) */
-} NNUDictionary;
 
-/* Computes the max dot product from candidate set with input sample x */
-inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
-                                double *D, double *x, int *candidate_set,
-                                int D_rows, int N)
+
+void compute_max_dot(FLOAT_T *max_coeff, int *max_idx, FLOAT_T *D,
+                     FLOAT_T *x, int D_rows, int D_cols)
 {
     int i;
-    double tmp_coeff = 0.0;
+    double tmp_coeff;
+    *max_coeff = 0.0;
+
+    for(i = 0; i < D_cols; i++) {
+        tmp_coeff = d_dot(x, d_viewcol(D, i, D_rows), D_rows);
+        tmp_coeff = fabs_(tmp_coeff);
+        if(tmp_coeff > *max_coeff) {
+            *max_coeff = tmp_coeff;
+            *max_idx = i;
+        }
+    }
+}
+
+
+/* Computes the max dot product from candidate set with input sample x */
+void compute_max_dot_set(FLOAT_T *max_coeff, int *max_idx, int *total_ab,
+                         FLOAT_T *D, FLOAT_T *x, int *candidate_set,
+                         int D_rows, int N)
+{
+    int i;
+    FLOAT_T tmp_coeff = 0.0;
     *max_coeff = 0.0;
     (*total_ab) += N;
 
 	for(i = 0; i < N; i++) {
         tmp_coeff = d_dot(x, d_viewcol(D, candidate_set[i], D_rows), D_rows);
-        tmp_coeff = fabs(tmp_coeff);
+        tmp_coeff = fabs_(tmp_coeff);
         if(tmp_coeff > *max_coeff) {
             *max_coeff = tmp_coeff;
             *max_idx = candidate_set[i];
@@ -518,7 +507,7 @@ inline void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
 }
 
 /* NNU candidate lookup using the generated tables */
-void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
+void atom_lookup(NNUDictionary *dict, FLOAT_T *x, word_t *atom_idxs,
                  int *candidate_set, int *N, int alpha, int beta, int s_stride)
 {
     int i, j, table_idx, table_key, shift_amount, shift_bits;
@@ -545,49 +534,72 @@ void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
 }
 
 /* NNU lookup for input vector X */
-int nnu(NNUDictionary *dict, double *X, int X_rows)
+int nnu(NNUDictionary *dict, FLOAT_T *X, int X_rows)
 {
     int N;
     int max_idx = 0;
     int total_ab = 0;
     int D_rows = dict->D_rows;
-    int s_stride = storage_stride(dict->storage);
     int X_cols = 1;  /* fixes X_cols to single vector case */
-    double max_coeff = 0.0;
+    FLOAT_T max_coeff = 0.0;
 
-    word_t atom_idxs[ATOMS/32 + 1] = {0};
-    int candidate_set[ALPHA*BETA] = {0};
-    double *D = dict->D;
-    double VX[ALPHA*S_STRIDE] = {0};
+    FLOAT_T *D = dict->D;
 
     /* zero-mean and unit norm input */
     normalize_colwise(X, X_rows, X_cols);
     subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
-    dmm_prod(dict->Vt, X, VX, dict->alpha*s_stride, dict->D_rows, X_rows,
+    dmm_prod(dict->Vt, X, VX, dict->alpha*S_STRIDE, dict->D_rows, X_rows,
              X_cols); 
-    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
-                candidate_set, &N, ALPHA, BETA, s_stride);
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*S_STRIDE), ATOM_IDXS,
+                CANDIDATE_SET, &N, dict->alpha, dict->beta, S_STRIDE);
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
-                        d_viewcol(X, 0, X_rows), candidate_set, D_rows, N);
+                        d_viewcol(X, 0, X_rows), CANDIDATE_SET, D_rows, N);
 
 	return max_idx;
 }
 
-/* linear SVM */
-typedef struct SVM {
-    int num_features;
-    int num_classes;
-    int num_clfs;
-    
-    double *coefs;
-    double *intercepts;
-} SVM;
+int nnu_pca(NNUDictionary *dict, FLOAT_T *X, int X_rows)
+{
+    int N;
+    int max_idx = 0;
+    int total_ab = 0;
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+    FLOAT_T max_coeff = 0.0;
 
-int classify(double *X, SVM *svm)
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
+    dmm_prod(dict->Vt, X, VX, dict->alpha*S_STRIDE, dict->D_rows, X_rows,
+                  X_cols); 
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*S_STRIDE), ATOM_IDXS,
+                CANDIDATE_SET, &N, dict->alpha, dict->beta, S_STRIDE);
+    compute_max_dot_set(&max_coeff, &max_idx, &total_ab, dict->VD,
+                        VX, CANDIDATE_SET, dict->alpha*S_STRIDE, N);
+
+	return max_idx;
+}
+
+
+int nns(NNUDictionary *dict, FLOAT_T *X, int X_rows)
+{
+    int D_rows = dict->D_rows;
+    int D_cols = dict->D_cols;
+    int max_idx = 0;
+    FLOAT_T max_coeff = 0.0;
+    FLOAT_T *D = dict->D;
+
+    compute_max_dot(&max_coeff, &max_idx, D, d_viewcol(X, 0, X_rows),
+                    D_rows, D_cols);
+
+	return max_idx;
+}
+
+int classify(FLOAT_T *X, SVM *svm)
 {
     int i, max_class_idx;
-    double *coef_col, max_coef, tmp_coef;
+    FLOAT_T *coef_col, max_coef, tmp_coef;
 
     for(i = 0; i < svm->num_clfs; i++) {
         coef_col = d_viewcol(svm->coefs, i, svm->num_features);
@@ -602,34 +614,38 @@ int classify(double *X, SVM *svm)
 }
 
 
-typedef struct Pipeline {
-    int ws;
-    int ss;
 
-    double *window_X;
-    double *bag_X;
-    NNUDictionary *nnu;
-    SVM *svm;
-} Pipeline;
+void nnu_start()
+{
+    /* clear bag_X for next sample */
+    memset(PIPELINE.bag_X, 0, PIPELINE.nnu->D_cols);
+}
 
-int classification_pipeline(double *X, int x_len, Pipeline *pipeline)
+void nnu_stream(FLOAT_T *X, int X_len)
 {
     int i, idx;
-    double l2_norm;
 
-    memset(pipeline->bag_X, 0, pipeline->nnu->D_cols);
+    for(i = 0; i*PIPELINE.ss < X_len - PIPELINE.ws + 1; i++) {
+        ith_window(X, PIPELINE.window_X, i, PIPELINE.ws, PIPELINE.ss);
 
-    for(i = 0; i*pipeline->ss < x_len - pipeline->ws + 1; i++) {
-        ith_window(X, pipeline->window_X, i, pipeline->ws, pipeline->ss);
-        idx = nnu(pipeline->nnu, pipeline->window_X, pipeline->ws);
-        pipeline->bag_X[idx] += 1.0;
+        /* ENC_FUNC is #define encoding function name */
+        idx = ENC_FUNC(PIPELINE.nnu, PIPELINE.window_X, PIPELINE.ws);
+
+        PIPELINE.bag_X[idx] += 1.0;
     }
-    
-    l2_norm = norm(pipeline->bag_X, pipeline->nnu->D_cols);
-    for(i = 0; i < pipeline->nnu->D_cols; i++) {
-        pipeline->bag_X[i] /= l2_norm;
-    }
-
-    return classify(pipeline->bag_X, pipeline->svm);
 }
-#endif /* STANDALONE_H */
+
+int nnu_classify()
+{
+    int i, idx, result;
+    FLOAT_T l2_norm;
+        
+    l2_norm = norm(PIPELINE.bag_X, PIPELINE.nnu->D_cols);
+    for(i = 0; i < PIPELINE.nnu->D_cols; i++) {
+        PIPELINE.bag_X[i] /= l2_norm;
+    }
+
+    result = classify(PIPELINE.bag_X, PIPELINE.svm);
+
+    return result;
+}
