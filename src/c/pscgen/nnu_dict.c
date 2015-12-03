@@ -44,7 +44,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
 
     /* compute prod(V, D) */
-    VD = blas_dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
+    VD = dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
     
     /* populate nnu tables */
     #pragma omp parallel private(dv, c, idxs, idx, table_idx, j, k, l)
@@ -176,42 +176,36 @@ int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
     normalize_colwise(X, X_rows, X_cols);
     subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
+
     D_rows = dict->D_rows;
     D_cols = dict->D_cols;
     s_stride = storage_stride(dict->storage);
     D = dict->D;
     total_ab = 0;
     ret = (int *)calloc(X_cols, sizeof(int));
-    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+    VX = blas_dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
                   X_cols); 
 
-    #pragma omp parallel private(atom_idxs, candidate_set, N, max_coeff, \
-                                 max_idx, thread_ab)
-    {
-        N = max_idx = thread_ab = 0;
-        max_coeff = 0.0;
-        atom_idxs = bit_vector(D_cols);
-        candidate_set = (int *)calloc(alpha*beta, sizeof(int));
 
-        #pragma omp for
-        for(i = 0; i < X_cols; i++) {
-            atom_lookup(dict, d_viewcol(VX, i, dict->alpha*s_stride),
-                        atom_idxs, candidate_set, &N, alpha, beta, s_stride);
-            compute_max_dot_set(&max_coeff, &max_idx, &thread_ab, D,
-                                d_viewcol(X, i, X_rows), candidate_set,
-                                D_rows, N);
-            ret[i] = max_idx;
-            clear_all_bit(atom_idxs, D_cols);
-        }
+    N = max_idx = thread_ab = 0;
+    max_coeff = 0.0;
+    atom_idxs = bit_vector(D_cols);
+    candidate_set = (int *)calloc(alpha*beta, sizeof(int));
 
-
-        #pragma omp atomic update
-        total_ab += thread_ab;
-
-        /* omp clean-up */
-        free(atom_idxs);
-        free(candidate_set);
+    for(i = 0; i < X_cols; i++) {
+        atom_lookup(dict, d_viewcol(VX, i, dict->alpha*s_stride),
+                    atom_idxs, candidate_set, &N, alpha, beta, s_stride);
+        compute_max_dot_set(&max_coeff, &max_idx, &thread_ab, D,
+                            d_viewcol(X, i, X_rows), candidate_set,
+                            D_rows, N);
+        ret[i] = max_idx;
+        clear_all_bit(atom_idxs, D_cols);
     }
+
+    total_ab += thread_ab;
+
+    free(atom_idxs);
+    free(candidate_set);
 
     /* update total ab used */
     *avg_ab = total_ab / (double)X_cols;
@@ -239,8 +233,14 @@ int nnu_single(NNUDictionary *dict, double *X, int X_rows)
     int *candidate_set = (int *)calloc(dict->alpha*dict->beta, sizeof(int));
     double *D = dict->D;
 
-    VX = blas_dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
-                       X_cols); 
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
+
+    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                  X_cols); 
+
     atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
                 candidate_set, &N, dict->alpha, dict->beta, s_stride);
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,

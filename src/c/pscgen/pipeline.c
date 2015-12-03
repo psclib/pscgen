@@ -30,15 +30,10 @@ int classification_pipeline(double *X, int x_len, Pipeline *pipeline)
 
     for(i = 0; i*pipeline->ss < x_len - pipeline->ws + 1; i++) {
         ith_window(X, pipeline->window_X, i, pipeline->ws, pipeline->ss);
-        normalize_colwise(pipeline->window_X, pipeline->ws, 1);
-        subtract_colwise(pipeline->window_X, pipeline->nnu->D_mean,
-                         pipeline->ws, 1);
-
         idx = nnu_single(pipeline->nnu, pipeline->window_X, pipeline->ws);
         pipeline->bag_X[idx] += 1.0;
     }
 
-    
     l2_norm = norm(pipeline->bag_X, pipeline->nnu->D_cols);
 
     for(i = 0; i < pipeline->nnu->D_cols; i++) {

@@ -139,11 +139,6 @@ char* svm_to_str(SVM *svm)
     final_str = (char *)malloc(sizeof(char) * 1000000);
 
 
-    /* wins */
-    int_buffer_to_str(output_str, "wins", svm->wins, svm->num_classes);
-    len += sprintf(final_str + len, "%s", output_str);  
-    len += sprintf(final_str + len, "\n");
-
     /* coefs */
     double_buffer_to_str(output_str, "coefs", svm->coefs,
                          svm->num_clfs*svm->num_features);
@@ -174,7 +169,7 @@ char* svm_to_str(SVM *svm)
     strcat(output_str, str);
     strcat(output_str, ",");
 
-    strcat(output_str, "wins,coefs,intercepts};");
+    strcat(output_str, "coefs,intercepts};");
 
     len += sprintf(final_str + len, "%s", output_str);  
 

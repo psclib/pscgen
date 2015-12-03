@@ -1,7 +1,7 @@
 import cPickle
 import numpy as np
 from sklearn.cluster import MiniBatchKMeans as KMeans
-from sklearn.svm import SVC
+from sklearn.svm import LinearSVC
 
 import utilities as util
 import pscgen_c
@@ -182,6 +182,30 @@ class NNU(object):
         else:
             return ret[0]
 
+    def index_single(self, X):
+        '''
+        Index into nnu tables.
+
+        X is dimensions x samples.
+        '''
+        X = np.copy(X)
+        X_cols = len(X)
+
+        if X_cols != self.D_rows:
+            msg = 'Dimension mismatch: Expected {} but got {}'
+            msg = msg.format(self.D_rows, X_cols)
+            print msg
+            assert False
+
+        X = np.ascontiguousarray(X.flatten())
+        ret = pscgen_c.index(self.alpha, self.beta, self.alpha, self.beta, self.gamma,
+                             self.storage, self.D, self.D_rows, self.D_cols,
+                             self.D_mean, self.tables, self.Vt, self.VD, X,
+                             X_cols, 1)
+
+        return ret[0]
+
+
     def to_dict(self):
         nnu_dict = {}
         nnu_dict['alpha'] = self.alpha
@@ -210,7 +234,11 @@ class Pipeline(object):
         self.KMeans_tr_size = 200000
 
     def fit(self, X, Y, D_atoms, alpha, beta, storage):
-        X_Kmeans = np.vstack(X)[:self.KMeans_tr_size]
+        X_window = []
+        for x in X:
+            X_window.append(util.sliding_window(x, self.ws, self.ss))
+
+        X_Kmeans = np.vstack(X_window)[:self.KMeans_tr_size]
         D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
         D.fit(X_Kmeans)
         D = D.cluster_centers_
@@ -219,13 +247,13 @@ class Pipeline(object):
         self.nnu.build_index(D)
 
         svm_X = []
-        for x in X:
+        for x in X_window:
             nbrs = self.nnu.index(x)
             svm_X.append(util.bow(nbrs, D_atoms))
 
-        self.svm = SVC(kernel='linear')
+        self.svm = LinearSVC()
         self.svm.fit(svm_X, Y)
-        self.coef = np.ascontiguousarray(self.svm.coef_.T.flatten())
+        self.coef = np.ascontiguousarray(self.svm.coef_.flatten())
         self.intercept = np.ascontiguousarray(self.svm.intercept_.flatten())
         self.num_classes = len(self.svm.classes_)
         self.num_features = D_atoms
@@ -242,10 +270,12 @@ class Pipeline(object):
 
     def classify(self, X):
         X = np.ascontiguousarray(X)
-        return pscgen_c.classify(X, len(X), self.ws, self.ss,
+        idx =  pscgen_c.classify(X, len(X), self.ws, self.ss,
                                  self.num_features, self.num_classes,
                                  self.coef, self.intercept, self.nnu.alpha,
                                  self.nnu.beta, self.nnu.gamma,
                                  self.nnu.storage, self.nnu.D, self.nnu.D_rows,
                                  self.nnu.D_cols, self.nnu.D_mean,
                                  self.nnu.tables, self.nnu.Vt, self.nnu.VD)[0]
+
+        return self.svm.classes_[idx]
