@@ -1,35 +1,12 @@
 #include "generator.h"
 
 void generate_nnu(const char *D_path, const char *output_path, const int alpha,
-                  const int beta, Storage_Scheme storage, const int max_atoms)
+                  const int beta, Storage_Scheme storage,
+                  Compression_Scheme comp_scheme, const int max_atoms)
 {
     const char *delimiters = ",";
-    NNUDictionary *dict = new_dict(alpha, beta, max_atoms, storage, D_path,
-                                   delimiters);
-    dict_to_file(dict, output_path);
-    delete_dict(dict);
-}
-
-void generate_empty_nnu(const char *output_path, const int alpha,
-                        const int beta, const int D_rows, 
-                        const int max_D_cols, Storage_Scheme storage)
-{
-    int gamma, s_stride;
-    NNUDictionary *dict;
-
-    gamma = ipow(2, storage_gamma_pow(storage));
-    s_stride = storage_stride(storage);
-    dict = (NNUDictionary *)malloc(sizeof(NNUDictionary));
-    dict->alpha = alpha;
-    dict->beta = beta;
-    dict->gamma = gamma;
-    dict->D_rows = D_rows;
-    dict->D_cols = 0;
-    dict->D = (double *)calloc(D_rows*max_D_cols, sizeof(double));
-    dict->Vt = (double *)calloc(alpha*s_stride*D_rows, sizeof(double));
-    dict->VD = (double *)calloc(alpha*s_stride*max_D_cols, sizeof(double));
-    dict->tables = (uint16_t *)calloc(alpha*beta*gamma, sizeof(uint16_t));
-
+    NNUDictionary *dict = new_dict(alpha, beta, max_atoms, storage,
+                                   comp_scheme, D_path, delimiters);
     dict_to_file(dict, output_path);
     delete_dict(dict);
 }

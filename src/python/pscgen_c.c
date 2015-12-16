@@ -73,18 +73,19 @@ PyObject* d_to_pobj(double *buf, int N)
 
 static PyObject* p_new_dict(PyObject *self, PyObject *args)
 {
-    int alpha, beta, max_atoms, gamma_pow, storage;
+    int alpha, beta, max_atoms, gamma_pow, storage, comp_scheme;
     const char *input_csv_path, *delimiters;
 
-    if(!PyArg_ParseTuple(args, "iiiiiss", &alpha, &beta, &gamma_pow, &storage,
-                         &max_atoms, &input_csv_path, &delimiters))
+    if(!PyArg_ParseTuple(args, "iiiiiiss", &alpha, &beta, &gamma_pow, &storage,
+                         &comp_scheme, &max_atoms, &input_csv_path,
+                         &delimiters))
         return NULL;
 
     int s_stride = storage_stride(storage);
 
     //Internal call
     NNUDictionary *dict = new_dict(alpha, beta, max_atoms, storage,
-                                   input_csv_path, delimiters);
+                                   comp_scheme, input_csv_path, delimiters);
 
     //Create return tuple
     PyObject *result = PyTuple_New(7);
@@ -130,11 +131,13 @@ static PyObject* p_new_dict(PyObject *self, PyObject *args)
 
 static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 {
-    int alpha, beta, max_atoms, gamma_pow, storage, D_rows_c, D_cols_c;
+    int alpha, beta, max_atoms, gamma_pow, storage, comp_scheme, D_rows_c,
+        D_cols_c;
     PyObject *D_obj;
    
-    if(!PyArg_ParseTuple(args, "iiiiiiiO", &alpha, &beta, &gamma_pow, &storage,
-                         &D_rows_c, &D_cols_c, &max_atoms, &D_obj))
+    if(!PyArg_ParseTuple(args, "iiiiiiiiO", &alpha, &beta, &gamma_pow,
+                         &storage, &comp_scheme, &D_rows_c, &D_cols_c,
+                         &max_atoms, &D_obj))
         return NULL;
 
     int s_stride = storage_stride(storage);
@@ -150,8 +153,8 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
     //Internal call
     NNUDictionary *dict = new_dict_from_buffer(alpha, beta, storage,
-                                               D_input_buf, D_rows_c,
-                                               D_cols_c, max_atoms);
+                                               comp_scheme, D_input_buf,
+                                               D_rows_c, D_cols_c, max_atoms);
 
     //clean-up input 
     Py_DECREF(D_input_buf);
@@ -201,13 +204,13 @@ static PyObject* p_new_dict_from_buffer(PyObject *self, PyObject *args)
 
 static PyObject* p_nnu(PyObject *self, PyObject *args)
 {
-   int alpha, beta, max_alpha, max_beta, gamma, storage, X_rows, X_cols,
-        D_rows, D_cols, max_atoms;
+   int alpha, beta, max_alpha, max_beta, gamma, storage, comp_scheme, X_rows,
+       X_cols, D_rows, D_cols, max_atoms;
     PyObject *X_obj, *D_obj, *D_mean_obj, *tables_obj, *Vt_obj, *VD_obj;
 
-    if(!PyArg_ParseTuple(args, "iiiiiiiiiOOOOOOii", &alpha, &beta, &max_alpha,
-                         &max_beta, &gamma, &storage, &D_rows, &D_cols,
-                         &max_atoms, &D_obj, 
+    if(!PyArg_ParseTuple(args, "iiiiiiiiiiOOOOOOii", &alpha, &beta, &max_alpha,
+                         &max_beta, &gamma, &storage, &comp_scheme, &D_rows,
+                         &D_cols, &max_atoms, &D_obj, 
                          &D_mean_obj, &tables_obj, &Vt_obj, &VD_obj, &X_obj,
                          &X_rows, &X_cols))
         return NULL;
@@ -244,8 +247,8 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
 
     //create NNUDictionary
     NNUDictionary dict = {alpha, beta, max_alpha, max_beta, gamma, storage, 
-                          D_rows, D_cols, max_atoms, tables, D, D_mean, Vt,
-                          VD};
+                          comp_scheme, D_rows, D_cols, max_atoms, tables, D,
+                          D_mean, Vt, VD};
 
 
     //Start timer
@@ -290,15 +293,14 @@ static PyObject* p_nnu(PyObject *self, PyObject *args)
 
 static PyObject* p_nnu_single(PyObject *self, PyObject *args)
 {
-   int alpha, beta, max_alpha, max_beta, gamma, storage, X_rows, X_cols,
-        D_rows, D_cols, max_atoms;
+   int alpha, beta, max_alpha, max_beta, gamma, storage, comp_scheme, X_rows,
+       X_cols, D_rows, D_cols, max_atoms;
     PyObject *X_obj, *D_obj, *D_mean_obj, *tables_obj, *Vt_obj, *VD_obj;
     const char *enc_type;
 
-    if(!PyArg_ParseTuple(args, "siiiiiiiiiOOOOOOii", &enc_type, &alpha, &beta,
-                         &max_alpha,
-                         &max_beta, &gamma, &storage, &D_rows, &D_cols,
-                         &max_atoms, &D_obj, 
+    if(!PyArg_ParseTuple(args, "siiiiiiiiiiOOOOOOii", &enc_type, &alpha, &beta,
+                         &max_alpha, &max_beta, &gamma, &storage,
+                         &comp_scheme, &D_rows, &D_cols, &max_atoms, &D_obj, 
                          &D_mean_obj, &tables_obj, &Vt_obj, &VD_obj, &X_obj,
                          &X_rows, &X_cols))
         return NULL;
@@ -335,8 +337,8 @@ static PyObject* p_nnu_single(PyObject *self, PyObject *args)
 
     //create NNUDictionary
     NNUDictionary dict = {alpha, beta, max_alpha, max_beta, gamma, storage, 
-                          D_rows, D_cols, max_atoms, tables, D, D_mean, Vt,
-                          VD};
+                          comp_scheme, D_rows, D_cols, max_atoms, tables, D,
+                          D_mean, Vt, VD};
 
     int *ret = malloc(max_alpha*max_beta*sizeof(int));
     int idxs;
@@ -384,17 +386,17 @@ static PyObject* p_nnu_single(PyObject *self, PyObject *args)
 static PyObject* p_generate(PyObject *self, PyObject *args)
 {
     int ws, ss, num_features, num_classes, max_classes,
-        alpha, beta, gamma, storage, D_rows, D_cols, max_atoms;
+        alpha, beta, gamma, storage, comp_scheme, D_rows, D_cols, max_atoms;
     const char *output_path, *enc_type, *float_type;
     PyObject *coef_obj, *intercept_obj, *D_obj, *D_mean_obj, *tables_obj,
              *Vt_obj, *VD_obj;
 
-    if(!PyArg_ParseTuple(args, "sssiiiiiOOiiiiiiiOOOOO", &output_path,
+    if(!PyArg_ParseTuple(args, "sssiiiiiOOiiiiiiiiOOOOO", &output_path,
                          &enc_type, &float_type, &ws,
                          &ss, &num_features, &num_classes, &max_classes,
                          &coef_obj, &intercept_obj, &alpha, &beta, &gamma,
-                         &storage, &D_rows, &D_cols, &max_atoms, &D_obj, 
-                         &D_mean_obj, &tables_obj, &Vt_obj, &VD_obj))
+                         &storage, &comp_scheme, &D_rows, &D_cols, &max_atoms,
+                         &D_obj, &D_mean_obj, &tables_obj, &Vt_obj, &VD_obj))
         return NULL;
 
 
@@ -436,8 +438,8 @@ static PyObject* p_generate(PyObject *self, PyObject *args)
 
     /* create NNUDictionary */
     NNUDictionary dict = {alpha, beta, alpha, beta, gamma,
-                          storage, D_rows, D_cols, max_atoms, tables, D,
-                          D_mean, Vt, VD};
+                          storage, comp_scheme, D_rows, D_cols, max_atoms,
+                          tables, D, D_mean, Vt, VD};
 
     /* create SVM */
     SVM *svm = new_svm(num_features, num_classes, max_classes, coef,
@@ -469,19 +471,19 @@ static PyObject* p_generate(PyObject *self, PyObject *args)
 
 static PyObject* p_classify(PyObject *self, PyObject *args)
 {
-    int X_rows, ws, ss, num_features, num_classes, max_classes,
-        alpha, beta, gamma, storage, D_rows, D_cols, ret, max_atoms;
+    int X_rows, ws, ss, num_features, num_classes, max_classes, alpha, beta,
+        gamma, storage, comp_scheme, D_rows, D_cols, ret, max_atoms;
     PyObject *X_obj, *coef_obj, *intercept_obj, *D_obj, *D_mean_obj,
              *tables_obj, *Vt_obj, *VD_obj;
     const char *enc_type;
 
     ret = 0;
 
-    if(!PyArg_ParseTuple(args, "sOiiiiiiOOiiiiiiiOOOOO", &enc_type, &X_obj,
+    if(!PyArg_ParseTuple(args, "sOiiiiiiOOiiiiiiiiOOOOO", &enc_type, &X_obj,
                          &X_rows, &ws, &ss, &num_features, &num_classes,
                          &max_classes, &coef_obj, &intercept_obj, &alpha,
-                         &beta, &gamma, &storage, &D_rows, &D_cols,
-                         &max_atoms, &D_obj, &D_mean_obj, &tables_obj, 
+                         &beta, &gamma, &storage, &comp_scheme, &D_rows,
+                         &D_cols, &max_atoms, &D_obj, &D_mean_obj, &tables_obj, 
                          &Vt_obj, &VD_obj))
         return NULL;
 
@@ -525,9 +527,9 @@ static PyObject* p_classify(PyObject *self, PyObject *args)
     double *VD = (double*)PyArray_DATA(VD_array);
 
     /* create NNUDictionary */
-    NNUDictionary dict = {alpha, beta, alpha, beta, gamma, storage, D_rows,
-                          D_cols, max_atoms, tables, D, D_mean, Vt, VD};
-
+    NNUDictionary dict = {alpha, beta, alpha, beta, gamma, storage,
+                          comp_scheme, D_rows, D_cols, max_atoms, tables, D,
+                          D_mean, Vt, VD};
 
     /* create SVM */
     SVM *svm = new_svm(num_features, num_classes, max_classes, coef,

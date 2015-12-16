@@ -1,7 +1,28 @@
 #include "nnu_dict.h"
 
+void build_sensing_mat(double *Dt, int rows, int cols, double *Vt,
+                       Compression_Scheme comp_scheme, int alpha, int s_stride)
+{
+    double *U, *S, *Vt_full;
+
+    switch(comp_scheme) {
+        case pca:
+            /* get eigen vectors of input dictionary file */
+            lapack_d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
+
+            /* trim to top alpha vectors */
+            Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
+
+            free(U);
+            free(S);
+            free(Vt_full);
+    }
+
+}
+
 NNUDictionary* new_dict(const int alpha, const int beta,
                         const int max_atoms, Storage_Scheme storage,
+                        Compression_Scheme comp_scheme,
                         const char *input_csv_path,
                         const char *delimiters)
 {
@@ -12,16 +33,18 @@ NNUDictionary* new_dict(const int alpha, const int beta,
     read_csv(input_csv_path, delimiters, &D, &rows, &cols);
 
     /* create NNUDictionary using read in file */
-    return new_dict_from_buffer(alpha, beta, storage, D, rows, cols, max_atoms);
+    return new_dict_from_buffer(alpha, beta, storage, comp_scheme, D, rows,
+                                cols, max_atoms);
 }
 
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
-                                    Storage_Scheme storage, double *D,
+                                    Storage_Scheme storage, 
+                                    Compression_Scheme comp_scheme, double *D,
                                     int rows, int cols, int max_atoms)
 {
     int i, j, k, l, idx, gamma, table_idx, s_stride;
     int *idxs;
-    double *Dt, *Vt, *Vt_full, *VD, *U, *S, *c, *D_mean;
+    double *Dt, *Vt, *VD, *c, *D_mean;
     float *dv;
     uint16_t *tables;
     NNUDictionary *dict;
@@ -38,15 +61,13 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     /* transpose D */
     Dt = d_transpose(D, rows, cols);
 
-    /* get eigen vectors of input dictionary file */
-    lapack_d_SVD(Dt, cols, rows, &U, &S, &Vt_full);
-
-    /* trim to top alpha vectors */
-    Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
+    /* build sensing matrix Vt */
+    build_sensing_mat(Dt, rows, cols, Vt, comp_scheme, alpha, s_stride);
 
     /* compute prod(V, D) */
     VD = dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
-    
+
+        
     /* populate nnu tables */
     #pragma omp parallel private(dv, c, idxs, idx, table_idx, j, k, l)
     {
@@ -88,6 +109,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     dict->alpha = alpha;
     dict->beta = beta;
     dict->gamma = gamma;
+    dict->comp_scheme = comp_scheme;
     dict->storage = storage;
     dict->D = D;
     dict->D_mean = D_mean; 
@@ -99,10 +121,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
 
     /* clean-up */
     free(Dt);
-    free(U);
-    free(S);
-    free(Vt_full);
-
+    
     return dict;
 }
 

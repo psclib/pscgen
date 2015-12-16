@@ -9,6 +9,14 @@
 #include "nnu_storage.h"
 #include "util.h"
 
+typedef enum
+{
+    pca, /* use eigvectors */
+    uniform_sub,
+    random_sub,
+    random_proj /* random gaussian projections */
+} Compression_Scheme;
+
 /* NNU dictionary */
 typedef struct NNUDictionary {
     int alpha; /* curr alpha */
@@ -16,7 +24,8 @@ typedef struct NNUDictionary {
     int max_alpha; /* height of tables */
     int max_beta; /* width of tables */
     int gamma; /* depth of tables */
-    Storage_Scheme storage; /*float representation of each index */
+    Storage_Scheme storage; /* float representation of each index */
+    Compression_Scheme comp_scheme;
     int D_rows; /* rows in D */
     int D_cols; /* curr cols in D */
     int max_atoms; /* max cols in D */
@@ -29,12 +38,17 @@ typedef struct NNUDictionary {
 } NNUDictionary;
 
 /* Dynamically allocated NNUDictionary functionality */
+void build_sensing_mat(double *Dt, int rows, int cols, double *Vt,
+                       Compression_Scheme comp_scheme, int alpha,
+                       int s_stride);
 NNUDictionary* new_dict(const int alpha, const int beta, const int max_atoms,
-                        Storage_Scheme storage, const char *input_csv_path,
-                        const char *delimiters);
+                        Storage_Scheme storage, Compression_Scheme comp_scheme,
+                        const char *input_csv_path, const char *delimiters);
 NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
-                                    Storage_Scheme storage, double *D,
-                                    int rows, int cols, int max_atoms);
+                                    Storage_Scheme storage, 
+                                    Compression_Scheme comp_scheme,
+                                    double *D, int rows, int cols,
+                                    int max_atoms);
 void delete_dict(NNUDictionary *dict);
 /* void save_dict(char *filepath, NNUDictionary *dict); */
 /* NNUDictionary* load_dict(char *filepath); */

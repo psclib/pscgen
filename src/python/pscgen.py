@@ -213,8 +213,28 @@ a.shape was %s and ws was %s' % (str(a.shape),str(ws)))
     dim = filter(lambda i : i != 1,dim)
     return strided.reshape(dim)
 
+class Compression_Scheme:
+    pca, uniform_sub, random_sub, random_proj = range(4)
 
+def compression_name(comp_scheme):
+    if comp_scheme == Compression_Scheme.pca:
+        return 'pca'
+    elif comp_scheme == Compression_Scheme.uniform_sub:
+        return 'uniform_sub'
+    elif comp_scheme == Compression_Scheme.random_sub:
+        return 'random_sub'
+    elif comp_scheme == Compression_Scheme.random_proj:
+        return 'random_proj'
 
+def name_to_comp_scheme(comp_scheme):
+    if comp_scheme == 'pca':
+        return Compression_Scheme.pca
+    elif comp_scheme == 'uniform_sub':
+        return Compression_Scheme.uniform_sub
+    elif comp_scheme == 'random_sub':
+        return Compression_Scheme.random_sub
+    elif comp_scheme == 'random_proj':
+        return Compression_Scheme.random_proj
 
 class Storage_Scheme:
     half, mini, micro, nano, two_mini, four_micro = range(6)
@@ -278,12 +298,13 @@ def name_to_storage(storage):
 
 
 class NNU(object):
-    def __init__(self, alpha, beta, storage, max_atoms):
+    def __init__(self, alpha, beta, storage, comp_scheme, max_atoms):
         self.alpha = alpha
         self.beta = beta
         self.gamma_exp = storage_gamma_exp(storage)
         self.gamma = 2**self.gamma_exp
         self.storage = storage
+        self.comp_scheme = comp_scheme
         self.name = storage_name(storage)
         self.D = None
         self.D_cols = None
@@ -314,8 +335,8 @@ class NNU(object):
         '''
         ret = pscgen_c.build_index_from_file(self.alpha, self.beta,
                                              self.gamma_exp, self.storage,
-                                             self.max_atoms, filepath,
-                                             delimiter)
+                                             self.comp_scheme, self.max_atoms,
+                                             filepath, delimiter)
         self.D = np.array(ret[0])
         self.D_mean = np.array(ret[1])
         self.D_rows = ret[2]
@@ -330,8 +351,8 @@ class NNU(object):
         '''
         D_rows, D_cols = D.shape
         ret = pscgen_c.build_index(self.alpha, self.beta, self.gamma_exp,
-                                   self.storage, D_cols, D_rows,
-                                   self.max_atoms, D.flatten())
+                                   self.storage, self.comp_scheme, D_cols,
+                                   D_rows, self.max_atoms, D.flatten())
         self.D = np.array(ret[0])
         self.D_mean = np.array(ret[1])
         self.D_rows = ret[2]
@@ -376,8 +397,8 @@ class NNU(object):
 
         X = np.ascontiguousarray(X.flatten())
         ret = pscgen_c.index(alpha, beta, self.alpha, self.beta, self.gamma,
-                             self.storage, self.D_rows, self.D_cols,
-                             self.max_atoms, self.D, self.D_mean, 
+                             self.storage, self.comp_scheme, self.D_rows,
+                             self.D_cols, self.max_atoms, self.D, self.D_mean, 
                              self.tables, self.Vt, self.VD, X,
                              X_cols, X_rows)
         runtime = eval(str(ret[1]) + '.' + str(ret[2])) 
@@ -405,10 +426,10 @@ class NNU(object):
         X = np.ascontiguousarray(X.flatten())
         ret = pscgen_c.index_single(enc_type, self.alpha, self.beta,
                                     self.alpha, self.beta, self.gamma,
-                                    self.storage, self.D_rows, self.D_cols,
-                                    self.max_atoms, self.D, self.D_mean,
-                                    self.tables, self.Vt, self.VD, X,
-                                    X_cols, 1)
+                                    self.storage, self.comp_scheme,
+                                    self.D_rows, self.D_cols, self.max_atoms,
+                                    self.D, self.D_mean, self.tables, self.Vt,
+                                    self.VD, X, X_cols, 1)
 
         return ret[0]
 
@@ -419,6 +440,7 @@ class NNU(object):
         nnu_dict['beta'] = self.beta
         nnu_dict['gamma'] = self.gamma
         nnu_dict['storage'] = storage_name(self.storage)
+        nnu_dict['comp_scheme'] = compression_name(self.comp_scheme)
         nnu_dict['tables'] = list(self.tables.astype(int))
         nnu_dict['D'] = list(self.D)
         nnu_dict['D_rows'] = self.D_rows
@@ -444,7 +466,7 @@ class Pipeline(object):
         self.enc_type = None
         self.max_classes = max_classes
 
-    def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage,
+    def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage, comp_scheme,
             enc_type='nnu'):
         self.enc_type = enc_type
 
@@ -466,7 +488,7 @@ class Pipeline(object):
         D = np.zeros(D_orig.shape)
         D[:, ::self.sub_sample] = D_orig[:, ::self.sub_sample]
 
-        self.nnu = NNU(alpha, beta, storage, max_atoms)
+        self.nnu = NNU(alpha, beta, storage, comp_scheme, max_atoms)
         self.nnu.build_index(D)
 
         svm_X = []
@@ -491,10 +513,11 @@ class Pipeline(object):
                                  self.num_features, self.num_classes,
                                  self.max_classes, self.coef, self.intercept,
                                  self.nnu.alpha, self.nnu.beta, self.nnu.gamma,
-                                 self.nnu.storage, self.nnu.D_rows,
-                                 self.nnu.D_cols, self.nnu.max_atoms,
-                                 self.nnu.D, self.nnu.D_mean,
-                                 self.nnu.tables, self.nnu.Vt, self.nnu.VD)
+                                 self.nnu.storage, self.nnu.comp_scheme,
+                                 self.nnu.D_rows, self.nnu.D_cols,
+                                 self.nnu.max_atoms, self.nnu.D,
+                                 self.nnu.D_mean, self.nnu.tables,
+                                 self.nnu.Vt, self.nnu.VD)
 
     def classify(self, X):
         X_orig = np.ascontiguousarray(X)
@@ -505,9 +528,10 @@ class Pipeline(object):
                                  self.num_features, self.num_classes,
                                  self.max_classes, self.coef, self.intercept,
                                  self.nnu.alpha, self.nnu.beta, self.nnu.gamma,
-                                 self.nnu.storage, self.nnu.D_rows,
-                                 self.nnu.D_cols, self.nnu.max_atoms,
-                                 self.nnu.D, self.nnu.D_mean,
-                                 self.nnu.tables, self.nnu.Vt, self.nnu.VD)[0]
+                                 self.nnu.storage, self.nnu.comp_scheme,
+                                 self.nnu.D_rows, self.nnu.D_cols,
+                                 self.nnu.max_atoms, self.nnu.D,
+                                 self.nnu.D_mean, self.nnu.tables, self.nnu.Vt,
+                                 self.nnu.VD)[0]
 
         return self.svm.classes_[idx]

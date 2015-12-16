@@ -11,7 +11,8 @@
 #include "standalone_types_char.h"
 
 void generate_nnu(const char *D_path, const char *output_path, const int alpha,
-                  const int beta, Storage_Scheme storage, const int max_atoms);
+                  const int beta, Storage_Scheme storage,
+                  Compression_Scheme comp_scheme, const int max_atoms);
 char* dict_to_str(NNUDictionary *dict, const char *enc_type);
 char* svm_to_str(SVM *svm);
 char* pipeline_to_str(Pipeline *pipeline, const char *enc_type,
