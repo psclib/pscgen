@@ -429,11 +429,12 @@ class NNU(object):
         return nnu_dict
 
 class Pipeline(object):
-    def __init__(self, ws, ss, max_classes):
+    def __init__(self, ws, ss, sub_sample=1, max_classes=10):
         self.nnu = None
         self.svm = None
         self.ws = ws
         self.ss = ss
+        self.sub_sample = sub_sample
         self.coef = None
         self.num_features = None
         self.num_classes = None
@@ -446,20 +447,30 @@ class Pipeline(object):
     def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage,
             enc_type='nnu'):
         self.enc_type = enc_type
-        X_window = []
-        for x in X:
+
+        X_window, X_window_sub = [], []
+        X = np.copy(X)
+
+        for i, x in enumerate(X):
             X_window.append(sliding_window(x, self.ws, self.ss))
+            x_z = np.zeros(len(x))
+            x_z[::self.sub_sample] = x[::self.sub_sample]
+            X_window_sub.append(sliding_window(x_z, self.ws, self.ss))
 
         X_Kmeans = np.vstack(X_window)[:self.KMeans_tr_size]
         D = KMeans(n_clusters=D_atoms, init_size=D_atoms*3)
         D.fit(X_Kmeans)
-        D = D.cluster_centers_
+        D_orig = D.cluster_centers_
+
+        #subsample dictionary
+        D = np.zeros(D_orig.shape)
+        D[:, ::self.sub_sample] = D_orig[:, ::self.sub_sample]
 
         self.nnu = NNU(alpha, beta, storage, max_atoms)
         self.nnu.build_index(D)
 
         svm_X = []
-        for x in X_window:
+        for x in X_window_sub:
             nbrs = []
             for xi in x:
                 new_nbrs = self.nnu.index_single(xi, enc_type=self.enc_type)
@@ -486,8 +497,11 @@ class Pipeline(object):
                                  self.nnu.tables, self.nnu.Vt, self.nnu.VD)
 
     def classify(self, X):
-        X = np.ascontiguousarray(X)
-        idx =  pscgen_c.classify(self.enc_type, X, len(X), self.ws, self.ss,
+        X_orig = np.ascontiguousarray(X)
+        X = np.ascontiguousarray(np.zeros(len(X_orig)))
+        X[::self.sub_sample] = X_orig[::self.sub_sample]
+
+        idx = pscgen_c.classify(self.enc_type, X, len(X), self.ws, self.ss,
                                  self.num_features, self.num_classes,
                                  self.max_classes, self.coef, self.intercept,
                                  self.nnu.alpha, self.nnu.beta, self.nnu.gamma,

@@ -155,11 +155,6 @@ char* svm_to_str(SVM *svm)
         /* intercepts */
     tmp = (double *)calloc(svm->max_classes, sizeof(double));
     memcpy(tmp, svm->intercepts, svm->num_classes*sizeof(double));
-    printf("%d\n", svm->num_classes);
-
-    int q;
-    for(q = 0; q <13; q++)
-        printf("%f\n", svm->intercepts[q]);
 
     double_buffer_to_str(output_str, "intercepts", tmp,
                          svm->max_classes);
@@ -240,16 +235,12 @@ char* dict_to_str(NNUDictionary *dict, const char *enc_type)
     }
 
     /* D */
-    if(strcmp(enc_type, "nnu") == 0 || strcmp(enc_type, "nns") == 0) {
-        tmp = (double *)calloc(dict->D_rows*dict->max_atoms, sizeof(double));
-        memcpy(tmp, dict->D, dict->D_rows*dict->D_cols*sizeof(double));
-        double_buffer_to_str(output_str, "D", tmp, dict->D_rows*dict->max_atoms);
-        len += sprintf(final_str + len, "%s", output_str);  
-        len += sprintf(final_str + len, "\n");
-        free(tmp);
-    } else {
-        len += sprintf(final_str + len, "FLOAT_T D[0];\n");  
-    }
+    tmp = (double *)calloc(dict->D_rows*dict->max_atoms, sizeof(double));
+    memcpy(tmp, dict->D, dict->D_rows*dict->D_cols*sizeof(double));
+    double_buffer_to_str(output_str, "D", tmp, dict->D_rows*dict->max_atoms);
+    len += sprintf(final_str + len, "%s", output_str);  
+    len += sprintf(final_str + len, "\n");
+    free(tmp);
 
     /* D_mean */
     tmp = (double *)calloc(dict->max_atoms, sizeof(double));
@@ -266,7 +257,7 @@ char* dict_to_str(NNUDictionary *dict, const char *enc_type)
     len += sprintf(final_str + len, "\n");
 
     /* VD */
-    if(strcmp(enc_type, "nnu_pca") == 0) {
+    if(strcmp(enc_type, "nnu") == 0 || strcmp(enc_type, "nnu_pca") == 0) {
         tmp = (double *)calloc(dict->alpha*s_stride*dict->max_atoms,
                                sizeof(double));
         memcpy(tmp, dict->VD, dict->alpha*s_stride*dict->D_cols*sizeof(double));

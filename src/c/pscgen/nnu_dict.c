@@ -322,7 +322,6 @@ int nnu_single_nodot(NNUDictionary *dict, double *X, int X_rows,
 }
 
 
-
 /* NNU candidate lookup using the generated tables */
 void atom_lookup(NNUDictionary *dict, double *x, word_t *atom_idxs,
                  int *candidate_set, int *N, int alpha, int beta, int s_stride)
@@ -357,6 +356,11 @@ int nns_single(NNUDictionary *dict, double *X, int X_rows)
     int max_idx = 0;
     double max_coeff;
     double *D = dict->D;
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
     compute_max_dot(&max_coeff, &max_idx, D, d_viewcol(X, 0, X_rows),
                     D_rows, D_cols);
@@ -373,6 +377,11 @@ double* nns(NNUDictionary *dict, double *X, int X_rows, int X_cols)
     double max_coeff;
     double *D = dict->D;
     double *ret = new_dvec(X_cols);
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
 
 	for(i = 0; i < X_cols; i++) {
         compute_max_dot(&max_coeff, &max_idx, D, d_viewcol(X, i, X_rows),

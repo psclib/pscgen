@@ -1,22 +1,24 @@
+
+#define SQRT_MAGIC_F 0x5f3759df
 word_t ATOM_IDXS[MAX_ATOMS/32 + 1] = {0};
 int CANDIDATE_SET[MAX_ALPHA*MAX_BETA] = {0};
 FLOAT_T VX[MAX_ALPHA*S_STRIDE] = {0};
 
 /* cmath functions */
-FLOAT_T sqrt_(FLOAT_T num) 
-{ 
-    if(num >= 0) { 
-        FLOAT_T x = num; 
-        int i; 
+FLOAT_T  sqrt_(const FLOAT_T x)
+{
 
-        for(i = 0; i < 20; i ++) { 
-            x = (((x * x) + num) / (2 * x)); 
-        } 
+  union // get bits for FLOAT_T value
+  {
+    FLOAT_T x;
+    int i;
+  } u;
+  u.x = x;
+  u.i = SQRT_MAGIC_F - (u.i >> 1);  // gives initial guess y0
 
-        return x; 
-    } 
+  const FLOAT_T xux = x*u.x;
 
-    return 0;
+  return xux*(1.5f - .5f*xux*u.x);// Newton step, repeating increases accuracy 
 }
 
 FLOAT_T fabs_(FLOAT_T n)
@@ -73,13 +75,15 @@ void dmm_prod(FLOAT_T *A, FLOAT_T *B, FLOAT_T *C, int A_rows, int A_cols,
               int B_rows, int B_cols)
 {
     int i, j, k;
+    FLOAT_T tmp;
 
     for(i = 0; i < A_rows; i++) {
         for(j = 0; j < B_cols; j++) {
+            tmp = 0;
             for(k = 0; k < A_cols; k++) {
-                C[idx2d(i, j, A_rows)] += A[idx2d(i, k , A_rows)] *
-                                          B[idx2d(k, j, B_rows)];
+                tmp += A[idx2d(i, k , A_rows)] * B[idx2d(k, j, B_rows)];
             }
+            C[idx2d(i, j, A_rows)] = tmp;
         }
     }
 }
@@ -556,6 +560,8 @@ int nnu(NNUDictionary *dict, FLOAT_T *X, int X_rows)
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
                         d_viewcol(X, 0, X_rows), CANDIDATE_SET, D_rows, N);
 
+    clear_all_bit(ATOM_IDXS, N);
+
 	return max_idx;
 }
 
@@ -578,6 +584,8 @@ int nnu_pca(NNUDictionary *dict, FLOAT_T *X, int X_rows)
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, dict->VD,
                         VX, CANDIDATE_SET, dict->alpha*S_STRIDE, N);
 
+    clear_all_bit(ATOM_IDXS, N);
+
 	return max_idx;
 }
 
@@ -587,8 +595,13 @@ int nns(NNUDictionary *dict, FLOAT_T *X, int X_rows)
     int D_rows = dict->D_rows;
     int D_cols = dict->D_cols;
     int max_idx = 0;
+    int X_cols = 1;  /* fixes X_cols to single vector case */
     FLOAT_T max_coeff = 0.0;
     FLOAT_T *D = dict->D;
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
     compute_max_dot(&max_coeff, &max_idx, D, d_viewcol(X, 0, X_rows),
                     D_rows, D_cols);
@@ -613,12 +626,13 @@ int classify(FLOAT_T *X, SVM *svm)
     return max_class_idx;
 }
 
-
-
 void nnu_start()
 {
-    /* clear bag_X for next sample */
-    memset(PIPELINE.bag_X, 0, PIPELINE.nnu->D_cols);
+	int i;
+
+	for (i = 0; i < PIPELINE.nnu->D_cols; ++i) {
+		PIPELINE.bag_X[i] = 0;
+	}
 }
 
 void nnu_stream(FLOAT_T *X, int X_len)

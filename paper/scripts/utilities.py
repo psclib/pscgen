@@ -1,11 +1,30 @@
-import numpy as np
-import sys
+import glob
 from functools import partial
+import sys
 
+import numpy as np
 from sklearn.svm import SVC
 from sklearn.metrics import accuracy_score, confusion_matrix
 from sklearn.metrics.pairwise import chi2_kernel
 from numpy.lib.stride_tricks import as_strided as ast
+from scikits.audiolab import wavread
+
+def wav_to_np(folder_path, single_chan=True):
+    if folder_path[-1] != '/':
+        folder_path += '/'
+
+    X, Y = [], []
+    files = glob.glob(folder_path + '*.wav')
+    for f in files:
+        data, sample_frequency,encoding = wavread(f)
+        if not single_chan:
+            data = data[:, 0]
+        X.append(data)
+        f = f.split('/')[-1].split('_')[0]
+        Y.append(f)
+
+    return np.array(X), np.array(Y)
+
 
 def normalize(X):
     X = np.copy(X)

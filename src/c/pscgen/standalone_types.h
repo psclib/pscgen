@@ -55,5 +55,3 @@ typedef struct Pipeline {
     NNUDictionary *nnu;
     SVM *svm;
 } Pipeline;
-
-Pipeline PIPELINE;
