@@ -13,6 +13,7 @@ typedef enum
 {
     pca, /* use eigvectors */
     uniform_sub,
+    random_linear_comb,
     random_sub,
     random_proj /* random gaussian projections */
 } Compression_Scheme;
@@ -38,9 +39,9 @@ typedef struct NNUDictionary {
 } NNUDictionary;
 
 /* Dynamically allocated NNUDictionary functionality */
-void build_sensing_mat(double *Dt, int rows, int cols, double *Vt,
-                       Compression_Scheme comp_scheme, int alpha,
-                       int s_stride);
+double* build_sensing_mat(double *Dt, int rows, int cols,
+                          Compression_Scheme comp_scheme, int alpha,
+                          int s_stride);
 NNUDictionary* new_dict(const int alpha, const int beta, const int max_atoms,
                         Storage_Scheme storage, Compression_Scheme comp_scheme,
                         const char *input_csv_path, const char *delimiters);
@@ -58,6 +59,8 @@ void delete_dict(NNUDictionary *dict);
 int* nnu(NNUDictionary *dict, int alpha, int beta, double *X, int X_rows,
          int X_cols, double *avg_ab);
 int nnu_single(NNUDictionary *dict, double *X, int X_rows);
+void nnu_single_candidates(NNUDictionary *dict, double *X, int X_rows, 
+                           int** candidate_set, double** magnitudes, int* N);
 int nnu_single_nodot(NNUDictionary *dict, double *X, int X_rows, 
                       int *candidate_set);
 int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows);

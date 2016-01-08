@@ -382,6 +382,84 @@ static PyObject* p_nnu_single(PyObject *self, PyObject *args)
     return result;
 }
 
+static PyObject* p_nnu_single_candidates(PyObject *self, PyObject *args)
+{
+   int alpha, beta, max_alpha, max_beta, gamma, storage, comp_scheme, X_rows,
+       X_cols, D_rows, D_cols, max_atoms;
+    PyObject *X_obj, *D_obj, *D_mean_obj, *tables_obj, *Vt_obj, *VD_obj;
+    const char *enc_type;
+
+    if(!PyArg_ParseTuple(args, "siiiiiiiiiiOOOOOOii", &enc_type, &alpha, &beta,
+                         &max_alpha, &max_beta, &gamma, &storage,
+                         &comp_scheme, &D_rows, &D_cols, &max_atoms, &D_obj, 
+                         &D_mean_obj, &tables_obj, &Vt_obj, &VD_obj, &X_obj,
+                         &X_rows, &X_cols))
+        return NULL;
+
+    PyObject *D_array = PyArray_FROM_OTF(D_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *D_mean_array = PyArray_FROM_OTF(D_mean_obj, NPY_DOUBLE,
+                                              NPY_IN_ARRAY);
+    PyObject *tables_array = PyArray_FROM_OTF(tables_obj, NPY_UINT16,
+                                              NPY_IN_ARRAY);
+    PyObject *Vt_array = PyArray_FROM_OTF(Vt_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *VD_array = PyArray_FROM_OTF(VD_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+    PyObject *X_array = PyArray_FROM_OTF(X_obj, NPY_DOUBLE, NPY_IN_ARRAY);
+
+
+    //Error handling
+    if(!D_array || !D_mean_array || !tables_array || !Vt_array || !VD_array ||
+       !X_array) {
+        Py_XDECREF(D_array);
+        Py_XDECREF(D_mean_array);
+        Py_XDECREF(tables_array);
+        Py_XDECREF(Vt_array);
+        Py_XDECREF(VD_array);
+        Py_XDECREF(X_array);
+        return NULL;
+    }
+
+    //Get pointers to the data
+    double *D = (double*)PyArray_DATA(D_array);
+    double *D_mean = (double*)PyArray_DATA(D_mean_array);
+    uint16_t *tables = (uint16_t*)PyArray_DATA(tables_array);
+    double *Vt = (double*)PyArray_DATA(Vt_array);
+    double *VD = (double*)PyArray_DATA(VD_array);
+    double *X = (double*)PyArray_DATA(X_array);
+
+    //create NNUDictionary
+    NNUDictionary dict = {alpha, beta, max_alpha, max_beta, gamma, storage, 
+                          comp_scheme, D_rows, D_cols, max_atoms, tables, D,
+                          D_mean, Vt, VD};
+
+    int N;
+    int *candidate_set;
+    double *magnitudes;
+
+    nnu_single_candidates(&dict, X, X_rows, &candidate_set, &magnitudes, &N);
+
+    PyObject *result = PyTuple_New(2);
+    if(!result)
+        return NULL;
+
+    PyObject *candidates_obj = i_to_pobj(candidate_set, N);
+    PyObject *magnitudes_obj = d_to_pobj(magnitudes, N);
+
+    PyTuple_SetItem(result, 0, candidates_obj);
+    PyTuple_SetItem(result, 1, magnitudes_obj);
+
+    //clean-up
+    Py_DECREF(D_array);
+    Py_DECREF(D_mean_array);
+    Py_DECREF(tables_array);
+    Py_DECREF(Vt_array);
+    Py_DECREF(VD_array);
+    Py_DECREF(X_array);
+
+    free(candidate_set);
+    free(magnitudes);
+
+    return result;
+}
 
 static PyObject* p_generate(PyObject *self, PyObject *args)
 {
@@ -585,6 +663,8 @@ static PyMethodDef module_methods[] = {
      "Create new NNUDictionary from a numpy array."},
     {"index", p_nnu, METH_VARARGS, "Index into NNUDictionary."},
     {"index_single", p_nnu_single, METH_VARARGS, "Index into NNUDictionary."},
+    {"candidates_single", p_nnu_single_candidates, METH_VARARGS,
+     "Get candidate indexes and magnitudes."},
     {"generate", p_generate, METH_VARARGS, "Generate standalone Pipeline."},
     {"classify", p_classify, METH_VARARGS, "Run classification pipeline."},
     {NULL, NULL, 0, NULL}

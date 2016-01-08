@@ -25,8 +25,9 @@ def num_ops(N, M):
 
 args = json.loads(sys.argv[1])
 storage = pscgen.name_to_storage(args['storage'])
+comp_scheme = pscgen.name_to_comp_scheme('pca')
 X, Y, X_flat = util.wav_to_np(args['tr_folder_path'], window_size=50)
-num_folds = 15
+num_folds = 5
 acc = 0.0
 max_atoms = 1000
 
@@ -43,7 +44,7 @@ accs = {}
 Ds = [500, 750, 1000]
 # Ds = [750]
 N_D = 750
-ws = 30
+ws = 40
 ss = 20
 
 # for ws, ss in product([10, 20, 25, 30, 35, 40, 45, 50, 60, 75, 100, 200], [20]):
@@ -68,11 +69,10 @@ for enc_t in ['nnu', 'nnu_pca']:
         for train_index, test_index in sss:
             pipe = pscgen.Pipeline(ws, ss, max_classes=20)
             pipe.fit(X_flat[train_index], Y[train_index], N_D, max_atoms,
-                     alpha, beta, storage, enc_type=enc_t)
+                     alpha, beta, storage, comp_scheme, enc_type=enc_t)
 
             Y_pred = [pipe.classify(X_flat[idx]) for idx in test_index]
             acc += accuracy_score(Y[test_index], Y_pred)
-
 
 
         acc = acc / float(num_folds)
@@ -100,7 +100,6 @@ for D in Ns:
 
 
 
-ws = 40
 names = {'nnu': 'NNU', 'nnu_pca': 'NNU-PCA-DR', 'nns': 'NNS'}
 styles = {'nnu': '--', 'nnu_pca': '-', 'nns': '-.'}
 colors = {'nnu': 'g', 'nnu_pca': 'b', 'nns': 'r'}

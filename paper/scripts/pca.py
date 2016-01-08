@@ -37,7 +37,8 @@ output_folder = sys.argv[2]
 if output_folder[-1] != '/':
     output_folder += '/'
 
-X, Y, _ = util.wav_to_np(data_folder)
+X, Y = util.wav_to_np(data_folder)
+X = [util.sliding_window(x, 40, 20) for x in X]
 
 X = np.vstack(X)
 X = X[np.random.permutation(len(X))]
@@ -53,10 +54,13 @@ D = D - D_mean
 X = X - D_mean
 U, S_D, V = np.linalg.svd(D)
 _, S_X, _ = np.linalg.svd(X[:M])
+V = V.T
+# V = np.random.randn(*V.shape)
+# V = V / np.linalg.norm(V, axis=1)
 VD = np.dot(V, D.T)
 VX = np.dot(V, X.T)
 
-N = 3
+N = 25
 linewidth = 2
 # x_idx = np.argmax(VX[0])
 # x_idx = np.random.permutation(len(X))[:100]

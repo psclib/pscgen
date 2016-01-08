@@ -214,13 +214,15 @@ a.shape was %s and ws was %s' % (str(a.shape),str(ws)))
     return strided.reshape(dim)
 
 class Compression_Scheme:
-    pca, uniform_sub, random_sub, random_proj = range(4)
+    pca, uniform_sub, random_linear_comb, random_sub, random_proj = range(5)
 
 def compression_name(comp_scheme):
     if comp_scheme == Compression_Scheme.pca:
         return 'pca'
     elif comp_scheme == Compression_Scheme.uniform_sub:
         return 'uniform_sub'
+    elif comp_scheme == Compression_Scheme.random_linear_comb:
+        return 'random_linear_comb'
     elif comp_scheme == Compression_Scheme.random_sub:
         return 'random_sub'
     elif comp_scheme == Compression_Scheme.random_proj:
@@ -230,7 +232,9 @@ def name_to_comp_scheme(comp_scheme):
     if comp_scheme == 'pca':
         return Compression_Scheme.pca
     elif comp_scheme == 'uniform_sub':
-        return Compression_Scheme.uniform_sub
+        return Compression_Scheme.pca
+    elif comp_scheme == 'random_linear_comb':
+        return Compression_Scheme.random_linear_comb
     elif comp_scheme == 'random_sub':
         return Compression_Scheme.random_sub
     elif comp_scheme == 'random_proj':
@@ -433,6 +437,33 @@ class NNU(object):
 
         return ret[0]
 
+    def candidates(self, X, enc_type='nnu'):
+        '''
+        Returns candidate set and magnitudes in table for given X
+
+        X is dimensions x samples.
+        '''
+        X = np.copy(X)
+        X_cols = len(X)
+
+        if X_cols != self.D_rows:
+            msg = 'Dimension mismatch: Expected {} but got {}'
+            msg = msg.format(self.D_rows, X_cols)
+            print msg
+            assert False
+
+        X = np.ascontiguousarray(X.flatten())
+        ret = pscgen_c.candidates_single(enc_type, self.alpha, self.beta,
+                                         self.alpha, self.beta, self.gamma,
+                                         self.storage, self.comp_scheme,
+                                         self.D_rows, self.D_cols,
+                                         self.max_atoms, self.D, self.D_mean,
+                                         self.tables, self.Vt, self.VD, X,
+                                         X_cols, 1)
+
+
+        return np.array(ret[0]), np.array(ret[1])
+
 
     def to_dict(self):
         nnu_dict = {}
@@ -450,6 +481,78 @@ class NNU(object):
 
         return nnu_dict
 
+
+class NNUForest(object):
+    def __init__(self, num_nodes=10, sample_dim='random', num_dims=10,
+                 alpha=5, beta=5, storage=name_to_storage('mini'),
+                 comp_scheme=Compression_Scheme.pca, enc_type='nnu'):
+        self.num_nodes = num_nodes
+        self.sample_dim = sample_dim
+        self.num_dims = num_dims
+        self.alpha = alpha
+        self.beta = beta
+        self.storage = storage
+        self.comp_scheme = comp_scheme
+        self.enc_type = enc_type
+        self.nnu_nodes = []
+        self.node_dim_idxs = []
+
+    def build_index(self, D):
+        self.num_atoms = D.shape[0]
+        self.D = np.copy(D)
+        D_dims = len(D[0])
+        total_dims = self.num_dims*self.num_nodes
+        partition_idxs = np.round(np.linspace(0, D_dims-1, total_dims))
+        partition_idxs = partition_idxs.astype(int)
+
+        for i in range(self.num_nodes):
+            if self.sample_dim == 'random':
+                selected_dims = np.random.permutation(D_dims)[:self.num_dims]
+            elif self.sample_dim == 'partition':
+                start_idx = i*self.num_dims
+                end_idx = (i+1)*self.num_dims
+                selected_dims = partition_idxs[start_idx:end_idx]
+
+            self.node_dim_idxs.append(selected_dims)
+            nnu = NNU(self.alpha, self.beta, self.storage, self.comp_scheme,
+                      self.num_atoms)
+            nnu.build_index(D[:, selected_dims])
+            self.nnu_nodes.append(nnu)
+
+        self.D_mean = np.mean(D, axis=0)
+        self.D = D - self.D_mean
+        self.D = normalize(D)
+
+    def index(self, X, detail=False):
+        atom_histogram = np.zeros(self.num_atoms)
+        atom_histogram_raw = np.zeros(self.num_atoms)
+        candidate_set = [] 
+        all_idxs = np.array(self.node_dim_idxs).flatten()
+
+        for i, nnu in enumerate(self.nnu_nodes):
+            candidates, magnitudes = nnu.candidates(X[self.node_dim_idxs[i]])
+            candidate_set.extend(candidates)
+            atom_histogram_raw[candidates] += magnitudes
+            
+        X = np.copy(X)
+        X = X - self.D_mean
+        if np.linalg.norm(X) > 0:
+            X = X / np.linalg.norm(X)
+
+        candidate_set = np.array(list(set(candidate_set)))
+        for idx in candidate_set:
+            atom_histogram[idx] = np.dot(self.D[idx][all_idxs], X[all_idxs])
+            
+        #abs at end
+        atom_histogram = np.abs(atom_histogram)
+        atom_histogram_raw = np.abs(atom_histogram_raw)
+
+        if detail:
+            return np.argmax(atom_histogram), atom_histogram, atom_histogram_raw
+        else:
+            return np.argmax(atom_histogram)
+
+
 class Pipeline(object):
     def __init__(self, ws, ss, sub_sample=1, max_classes=10):
         self.nnu = None
@@ -466,9 +569,13 @@ class Pipeline(object):
         self.enc_type = None
         self.max_classes = max_classes
 
-    def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage, comp_scheme,
-            enc_type='nnu'):
+    def fit(self, X, Y, D_atoms, max_atoms, alpha, beta, storage,
+            comp_scheme=Compression_Scheme.pca, enc_type='nnu', T2=None):
         self.enc_type = enc_type
+        if T2 == None:
+            self.T2 = comp_scheme
+        else:
+            self.T2 = T2
 
         X_window, X_window_sub = [], []
         X = np.copy(X)
@@ -490,6 +597,7 @@ class Pipeline(object):
 
         self.nnu = NNU(alpha, beta, storage, comp_scheme, max_atoms)
         self.nnu.build_index(D)
+        self.nnu.comp_scheme = self.T2
 
         svm_X = []
         for x in X_window_sub:

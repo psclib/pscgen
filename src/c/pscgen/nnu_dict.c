@@ -1,9 +1,12 @@
 #include "nnu_dict.h"
 
-void build_sensing_mat(double *Dt, int rows, int cols, double *Vt,
-                       Compression_Scheme comp_scheme, int alpha, int s_stride)
+double* build_sensing_mat(double *Dt, int rows, int cols,
+                          Compression_Scheme comp_scheme, int alpha, int s_stride)
 {
-    double *U, *S, *Vt_full;
+    int i, j;
+    int *idxs;
+    double row_stride, curr_stride;
+    double *U, *S, *Vt_full, *Vt;
 
     switch(comp_scheme) {
         case pca:
@@ -13,11 +16,54 @@ void build_sensing_mat(double *Dt, int rows, int cols, double *Vt,
             /* trim to top alpha vectors */
             Vt = d_trim(Vt_full, rows, alpha*s_stride, rows);
 
+            /* clean-up */
             free(U);
             free(S);
             free(Vt_full);
+            break;
+
+        case uniform_sub:
+            row_stride = rows / (double)alpha*s_stride;
+            Vt = (double *)calloc(rows*alpha*s_stride, sizeof(double));
+            for(i = 0, curr_stride = 0; i < alpha*s_stride;
+                i++, curr_stride += row_stride) {
+                j = rint(curr_stride);
+                Vt[idx2d(i, j, alpha*s_stride)] = 1.0;
+            }
+
+            break;
+
+        case random_linear_comb:
+            exit(1);
+            break;
+
+        case random_sub:
+            idxs = (int *)malloc(rows*sizeof(int));
+            Vt = (double *)calloc(rows*alpha*s_stride, sizeof(double));
+
+            for(i = 0; i < rows; i++) {
+                idxs[i] = i;
+            }
+
+            shuffle(idxs, rows);
+
+            for(i = 0; i < alpha*s_stride; i++) {
+                Vt[idx2d(i, idxs[i], alpha*s_stride)] = 1.0;
+            }
+
+            /* clean-up */
+            free(idxs);
+            break;
+
+        case random_proj:
+            exit(1);
+
+        default:
+            exit(1);
+            break;
     }
 
+    return Vt;
 }
 
 NNUDictionary* new_dict(const int alpha, const int beta,
@@ -49,6 +95,8 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     uint16_t *tables;
     NNUDictionary *dict;
 
+    Vt = NULL;
+
     /* make zero-mean and unit variance */
     normalize_colwise(D, rows, cols);
     D_mean = mean_colwise(D, rows, cols);
@@ -62,7 +110,7 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     Dt = d_transpose(D, rows, cols);
 
     /* build sensing matrix Vt */
-    build_sensing_mat(Dt, rows, cols, Vt, comp_scheme, alpha, s_stride);
+    Vt = build_sensing_mat(Dt, rows, cols, comp_scheme, alpha, s_stride);
 
     /* compute prod(V, D) */
     VD = dmm_prod(Vt, D, alpha*s_stride, rows, rows, cols);
@@ -124,56 +172,6 @@ NNUDictionary* new_dict_from_buffer(const int alpha, const int beta,
     
     return dict;
 }
-
-/* void save_dict(char *filepath, NNUDictionary *dict) */
-/* { */
-/*     int s_stride = storage_stride(dict->storage); */
-
-/*     FILE *fp = fopen(filepath, "w+"); */
-/*     fwrite(&dict->alpha, sizeof(int), 1, fp); */
-/*     fwrite(&dict->beta, sizeof(int), 1, fp); */
-/*     fwrite(&dict->gamma, sizeof(int), 1, fp); */
-/*     fwrite(&dict->storage, sizeof(Storage_Scheme), 1, fp); */
-/*     fwrite(dict->tables, sizeof(uint16_t), */
-/*            dict->alpha * dict->beta * dict->gamma, fp); */
-/*     fwrite(&dict->D_rows, sizeof(int), 1, fp); */
-/*     fwrite(&dict->D_cols, sizeof(int), 1, fp); */
-/*     fwrite(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp); */
-/*     fwrite(dict->Vt, sizeof(double), dict->alpha*s_stride * dict->D_rows, fp); */
-/*     fwrite(dict->VD, sizeof(double), dict->alpha*s_stride * dict->D_cols, fp); */
-/*     fclose(fp); */
-/* } */
-
-/* NNUDictionary* load_dict(char *filepath) */
-/* { */
-
-/*     int s_stride; */
-/*     NNUDictionary *dict = (NNUDictionary *)malloc(sizeof(NNUDictionary)); */
-/*     FILE *fp = fopen(filepath, "r"); */
-/*     fread(&dict->alpha, sizeof(int), 1, fp); */
-/*     fread(&dict->beta, sizeof(int), 1, fp); */
-/*     fread(&dict->gamma, sizeof(int), 1, fp); */
-/*     fread(&dict->storage, sizeof(Storage_Scheme), 1, fp); */
-/*     s_stride = storage_stride(dict->storage); */
-/*     dict->tables = (uint16_t *)malloc(sizeof(uint16_t) * dict->alpha * */
-/*                                       dict->beta * dict->gamma); */
-/*     fread(dict->tables, sizeof(uint16_t), */
-/*           dict->alpha * dict->beta * dict->gamma, fp); */
-/*     fread(&dict->D_rows, sizeof(int), 1, fp); */
-/*     fread(&dict->D_cols, sizeof(int), 1, fp); */
-/*     dict->D = (double *)malloc(sizeof(double) * dict->D_rows * dict->D_cols); */
-/*     dict->Vt = (double *)malloc(sizeof(double) * dict->alpha*s_stride * */
-/*                                 dict->D_rows); */
-/*     dict->VD = (double *)malloc(sizeof(double) * dict->alpha*s_stride * */
-/*                                 dict->D_cols); */
-/*     fread(dict->D, sizeof(double), dict->D_rows * dict->D_cols, fp); */
-/*     fread(dict->Vt, sizeof(double), dict->alpha * dict->D_rows, fp); */
-/*     fread(dict->VD, sizeof(double), dict->alpha * dict->D_cols, fp); */
-/*     fclose(fp); */
-
-/*     return dict; */
-/* } */
-
 
 void delete_dict(NNUDictionary *dict)
 {
@@ -276,9 +274,53 @@ int nnu_single(NNUDictionary *dict, double *X, int X_rows)
 	return max_idx;
 }
 
-int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows)
+void nnu_single_candidates(NNUDictionary *dict, double *X, int X_rows, 
+                           int** ret_candidate_set, double** ret_magnitudes,
+                           int* ret_N)
 {
     double *VX;
+    int i;
+    int N;
+    int D_rows = dict->D_rows;
+    int D_cols = dict->D_cols;
+    int s_stride = storage_stride(dict->storage);
+    int X_cols = 1;  /* fixes X_cols to single vector case */
+    int *candidate_set;
+    double *magnitudes;
+
+    word_t* atom_idxs = bit_vector(D_cols);
+    candidate_set = (int *)calloc(dict->alpha*dict->beta, sizeof(int));
+    double *D = dict->D;
+
+    /* zero mean and unit norm */
+    normalize_colwise(X, X_rows, X_cols);
+    subtract_colwise(X, dict->D_mean, X_rows, X_cols);
+
+    VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
+                  X_cols); 
+
+    atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
+                candidate_set, &N, dict->alpha, dict->beta, s_stride);
+
+    magnitudes = (double *)malloc(N*sizeof(double));
+
+	for(i = 0; i < N; i++) {
+        magnitudes[i] = d_dot(X, d_viewcol(D, candidate_set[i], D_rows),
+                              D_rows);
+    }
+
+    /* clean-up */
+    free(atom_idxs);
+    free(VX);
+
+    *ret_candidate_set = candidate_set; 
+    *ret_magnitudes = magnitudes; 
+    *ret_N = N;
+}
+
+int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows)
+{
+    double *VX, *VD;
     int N;
     int max_idx = 0;
     int total_ab = 0;
@@ -294,12 +336,13 @@ int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows)
     normalize_colwise(X, X_rows, X_cols);
     subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
-
     VX = dmm_prod(dict->Vt, X, dict->alpha*s_stride, dict->D_rows, X_rows,
                   X_cols); 
+    VD = dict->VD;
+
     atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*s_stride), atom_idxs,
                 candidate_set, &N, dict->alpha, dict->beta, s_stride);
-    compute_max_dot_set(&max_coeff, &max_idx, &total_ab, dict->VD,
+    compute_max_dot_set(&max_coeff, &max_idx, &total_ab, VD,
                         VX, candidate_set, dict->alpha*s_stride, N);
 
     /* clean-up */
@@ -313,7 +356,7 @@ int nnu_pca_single(NNUDictionary *dict, double *X, int X_rows)
 
 /* NNU lookup for input vector X */
 int nnu_single_nodot(NNUDictionary *dict, double *X, int X_rows, 
-                      int *candidate_set)
+                     int *candidate_set)
 {
     double *VX;
     int N;
@@ -465,7 +508,7 @@ void compute_max_dot_set(double *max_coeff, int *max_idx, int *total_ab,
 
 /* Computes the max dot product index of a Dictionary D with input sample x */
 void compute_max_dot(double *max_coeff, int *max_idx, double *D,
-                            double *x, int D_rows, int D_cols)
+                     double *x, int D_rows, int D_cols)
 {
     int i;
     double tmp_coeff;

@@ -291,6 +291,7 @@ void normalize_colwise(double *X, int rows, int cols)
     }
 }
 
+
 double norm(double *X, int N)
 {
     int i;
@@ -368,6 +369,56 @@ int ipow(int base, int exp)
     }
 
     return result;
+}
+
+int rand_int(int n)
+{
+    int limit = RAND_MAX - RAND_MAX % n;
+    int rnd;
+
+    do {
+        rnd = rand();
+    } while (rnd >= limit);
+
+    return rnd % n;
+}
+
+void shuffle(int *array, int n)
+{
+    int i, j, tmp;
+
+    for (i = n - 1; i > 0; i--) {
+        j = rand_int(i + 1);
+        tmp = array[j];
+        array[j] = array[i];
+        array[i] = tmp;
+    }
+}
+
+double randn (double mu, double sigma)
+{
+    double U1, U2, W, mult;
+    static double X1, X2;
+    static int call = 0;
+
+    if (call == 1) {
+        call = !call;
+        return (mu + sigma * (double) X2);
+    }
+
+    do {
+        U1 = -1 + ((double) rand () / RAND_MAX) * 2;
+        U2 = -1 + ((double) rand () / RAND_MAX) * 2;
+        W = pow (U1, 2) + pow (U2, 2);
+    } while (W >= 1 || W == 0);
+
+    mult = sqrt ((-2 * log (W)) / W);
+    X1 = U1 * mult;
+    X2 = U2 * mult;
+
+    call = !call;
+
+    return (mu + sigma * (double) X1);
 }
 
 struct timespec t_diff(struct timespec start, struct timespec end)

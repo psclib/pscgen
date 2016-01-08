@@ -57,6 +57,9 @@ double* mean_colwise(double *X, int rows, int cols);
 
 /* misc math */
 int ipow(int base, int exp);
+double randn (double mu, double sigma);
+int rand_int(int n);
+void shuffle(int *array, int n);
 
 /* timing functions */
 struct timespec t_diff(struct timespec start, struct timespec end);
