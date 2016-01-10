@@ -483,12 +483,15 @@ class NNU(object):
 
 
 class NNUForest(object):
-    def __init__(self, num_nodes=10, sample_dim='random', num_dims=10,
-                 alpha=5, beta=5, storage=name_to_storage('mini'),
+    def __init__(self, num_nodes=10, dim_partition='full',
+                 dict_partition='full', num_dims=-1, num_atoms=-1, alpha=5,
+                 beta=5, storage=name_to_storage('mini'),
                  comp_scheme=Compression_Scheme.pca, enc_type='nnu'):
         self.num_nodes = num_nodes
-        self.sample_dim = sample_dim
+        self.dim_partition = dim_partition
+        self.dict_partition = dict_partition
         self.num_dims = num_dims
+        self.num_atoms = num_atoms
         self.alpha = alpha
         self.beta = beta
         self.storage = storage
@@ -496,27 +499,47 @@ class NNUForest(object):
         self.enc_type = enc_type
         self.nnu_nodes = []
         self.node_dim_idxs = []
+        self.node_atom_idxs = []
 
     def build_index(self, D):
-        self.num_atoms = D.shape[0]
+        self.total_atoms = D.shape[0]
         self.D = np.copy(D)
         D_dims = len(D[0])
-        total_dims = self.num_dims*self.num_nodes
-        partition_idxs = np.round(np.linspace(0, D_dims-1, total_dims))
-        partition_idxs = partition_idxs.astype(int)
+        if self.dict_partition == 'full':
+            self.num_atoms = self.total_atoms
+        elif self.dict_partition == 'partition':
+            self.num_atoms = int(self.total_atoms / float(self.num_nodes))
+
+        if self.dim_partition == 'full':
+            self.num_dims = D_dims
+            partition_idxs = np.arange(D_dims)
+        elif self.dim_partition == 'partition':
+            self.num_dims = int(D_dims / float(self.num_nodes))
+            total_dims = self.num_dims*self.num_nodes
+            partition_idxs = np.round(np.linspace(0, D_dims-1, total_dims))
+            partition_idxs = partition_idxs.astype(int)
 
         for i in range(self.num_nodes):
-            if self.sample_dim == 'random':
-                selected_dims = np.random.permutation(D_dims)[:self.num_dims]
-            elif self.sample_dim == 'partition':
+            if self.dict_partition == 'full':
+                selected_atoms = np.arange(self.total_atoms)
+            elif self.dict_partition == 'partition':
+                start_idx = i*self.num_atoms
+                end_idx = (i+1)*self.num_atoms
+                selected_atoms = np.arange(start_idx, end_idx)
+
+            if self.dim_partition == 'full':
+                selected_dims = partition_idxs
+            elif self.dim_partition == 'partition':
                 start_idx = i*self.num_dims
                 end_idx = (i+1)*self.num_dims
                 selected_dims = partition_idxs[start_idx:end_idx]
 
+            
             self.node_dim_idxs.append(selected_dims)
+            self.node_atom_idxs.append(selected_atoms)
             nnu = NNU(self.alpha, self.beta, self.storage, self.comp_scheme,
                       self.num_atoms)
-            nnu.build_index(D[:, selected_dims])
+            nnu.build_index(D[selected_atoms][:, selected_dims])
             self.nnu_nodes.append(nnu)
 
         self.D_mean = np.mean(D, axis=0)
@@ -524,33 +547,39 @@ class NNUForest(object):
         self.D = normalize(D)
 
     def index(self, X, detail=False):
-        atom_histogram = np.zeros(self.num_atoms)
-        atom_histogram_raw = np.zeros(self.num_atoms)
+        # atom_histogram = np.zeros(self.total_atoms)
+        atom_histogram_raw = np.zeros(self.total_atoms)
         candidate_set = [] 
-        all_idxs = np.array(self.node_dim_idxs).flatten()
+        # all_idxs = np.array(self.node_dim_idxs).flatten()
 
         for i, nnu in enumerate(self.nnu_nodes):
             candidates, magnitudes = nnu.candidates(X[self.node_dim_idxs[i]])
+            candidates = np.array(candidates)
+
+            if self.dict_partition == 'partition':
+                candidates += i*self.num_atoms
+
             candidate_set.extend(candidates)
             atom_histogram_raw[candidates] += magnitudes
             
-        X = np.copy(X)
-        X = X - self.D_mean
-        if np.linalg.norm(X) > 0:
-            X = X / np.linalg.norm(X)
+        # X = np.copy(X)
+        # X = X - self.D_mean
+        # if np.linalg.norm(X) > 0:
+        #     X = X / np.linalg.norm(X)
 
-        candidate_set = np.array(list(set(candidate_set)))
-        for idx in candidate_set:
-            atom_histogram[idx] = np.dot(self.D[idx][all_idxs], X[all_idxs])
+        # candidate_set = np.array(list(set(candidate_set)))
+        # for idx in candidate_set:
+        #     atom_histogram[idx] = np.dot(self.D[idx][all_idxs], X[all_idxs])
             
         #abs at end
-        atom_histogram = np.abs(atom_histogram)
+        # atom_histogram = np.abs(atom_histogram)
         atom_histogram_raw = np.abs(atom_histogram_raw)
 
         if detail:
-            return np.argmax(atom_histogram), atom_histogram, atom_histogram_raw
+            # return np.argmax(atom_histogram), atom_histogram, atom_histogram_raw
+            return np.argmax(atom_histogram_raw), atom_histogram_raw
         else:
-            return np.argmax(atom_histogram)
+            return np.argmax(atom_histogram_raw)
 
 
 class Pipeline(object):
