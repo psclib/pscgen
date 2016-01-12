@@ -542,9 +542,9 @@ class NNUForest(object):
             nnu.build_index(D[selected_atoms][:, selected_dims])
             self.nnu_nodes.append(nnu)
 
+        self.D = normalize(D)
         self.D_mean = np.mean(D, axis=0)
         self.D = D - self.D_mean
-        self.D = normalize(D)
 
     def index(self, X, detail=False):
         # atom_histogram = np.zeros(self.total_atoms)
@@ -562,24 +562,26 @@ class NNUForest(object):
             candidate_set.extend(candidates)
             atom_histogram_raw[candidates] += magnitudes
             
-        # X = np.copy(X)
-        # X = X - self.D_mean
-        # if np.linalg.norm(X) > 0:
-        #     X = X / np.linalg.norm(X)
+        X = np.copy(X)
+        if np.linalg.norm(X) > 0:
+            X = X / np.linalg.norm(X)
 
-        # candidate_set = np.array(list(set(candidate_set)))
-        # for idx in candidate_set:
-        #     atom_histogram[idx] = np.dot(self.D[idx][all_idxs], X[all_idxs])
+        X = X - self.D_mean
+
+        candidate_set = np.array(list(set(candidate_set)))
             
-        #abs at end
-        # atom_histogram = np.abs(atom_histogram)
-        atom_histogram_raw = np.abs(atom_histogram_raw)
+        if self.dim_partition == 'partition':
+            max_idx = np.argmax(np.abs(np.dot(self.D[candidate_set], X)))
+
+            #map to correct atom idx
+            ret_idx = candidate_set[max_idx]
+        else:
+            ret_idx = np.argmax(np.abs(atom_histogram_raw))
 
         if detail:
-            # return np.argmax(atom_histogram), atom_histogram, atom_histogram_raw
-            return np.argmax(atom_histogram_raw), atom_histogram_raw
+            return ret_idx, len(candidate_set)
         else:
-            return np.argmax(atom_histogram_raw)
+            return ret_idx
 
 
 class Pipeline(object):

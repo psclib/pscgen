@@ -119,22 +119,32 @@ char* svm_to_str(SVM *svm)
     str = (char *)malloc(sizeof(char) * str_sz);
     final_str = (char *)malloc(sizeof(char) * 1000000);
 
+    int svm_alloc_width, svm_curr_width;
+    if(svm->max_classes == 2) {
+        svm_alloc_width = 1;
+        svm_curr_width = 1;
+    }
+    else {
+        svm_alloc_width = svm->max_classes;
+        svm_curr_width = svm->num_classes;
+    }
+
 
     /* coefs */
-    tmp = (double *)calloc(svm->max_classes*svm->num_features, sizeof(double));
-    memcpy(tmp, svm->coefs, svm->num_classes*svm->num_features*sizeof(double));
+    tmp = (double *)calloc(svm_alloc_width*svm->num_features, sizeof(double));
+    memcpy(tmp, svm->coefs, svm_curr_width*svm->num_features*sizeof(double));
     double_buffer_to_str(output_str, "coefs", tmp,
-                         svm->max_classes*svm->num_features);
+                         svm_alloc_width*svm->num_features);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
     free(tmp);
 
         /* intercepts */
-    tmp = (double *)calloc(svm->max_classes, sizeof(double));
-    memcpy(tmp, svm->intercepts, svm->num_classes*sizeof(double));
+    tmp = (double *)calloc(svm_alloc_width, sizeof(double));
+    memcpy(tmp, svm->intercepts, svm_curr_width*sizeof(double));
 
     double_buffer_to_str(output_str, "intercepts", tmp,
-                         svm->max_classes);
+                         svm_alloc_width);
     len += sprintf(final_str + len, "%s", output_str);  
     len += sprintf(final_str + len, "\n");
     free(tmp);
