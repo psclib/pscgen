@@ -481,6 +481,53 @@ class NNU(object):
 
         return nnu_dict
 
+class NNUDictDim(object):
+    def __init__(self, num_l1_nodes, num_l2_nodes, alpha, beta):
+        self.num_l1_nodes = num_l1_nodes
+        self.num_l2_nodes = num_l2_nodes
+        self.alpha = alpha
+        self.beta = beta
+        self.nodes = []
+
+        for i in range(self.num_l2_nodes):
+            nnuf = NNUForest(num_nodes=self.num_l1_nodes,
+                             dim_partition='partition',
+                             alpha=self.alpha,
+                             beta=self.beta)
+            self.nodes.append(nnuf)
+
+
+    def build_index(self, D):
+        self.num_atoms = int(len(D) / float(self.num_l2_nodes)) + 1
+        for i, node in enumerate(self.nodes):
+            start_idx = i*self.num_atoms
+            end_idx = (i+1)*self.num_atoms
+            D_inner = np.copy(D)
+            D_inner = D_inner[start_idx:end_idx]
+            node.build_index(D_inner)
+
+
+    def index(self, X, detail=False):
+        max_magnitude = 0
+        ret_idx = 0
+        num_candidates = 0
+        for i, node in enumerate(self.nodes):
+            start_idx = i*self.num_atoms
+            atom_idx, magnitude, num_c = node.index(X, detail=True)
+            num_candidates += num_c
+
+            #align the atom
+            atom_idx += start_idx
+            if magnitude > max_magnitude:
+                max_magnitude = magnitude
+                ret_idx = atom_idx
+
+        if detail == True:
+            return ret_idx, max_magnitude, num_candidates
+        else:
+            return ret_idx
+
+
 
 class NNUForest(object):
     def __init__(self, num_nodes=10, dim_partition='full',
@@ -533,7 +580,6 @@ class NNUForest(object):
                 start_idx = i*self.num_dims
                 end_idx = (i+1)*self.num_dims
                 selected_dims = partition_idxs[start_idx:end_idx]
-
             
             self.node_dim_idxs.append(selected_dims)
             self.node_atom_idxs.append(selected_atoms)
@@ -546,11 +592,10 @@ class NNUForest(object):
         self.D_mean = np.mean(D, axis=0)
         self.D = D - self.D_mean
 
-    def index(self, X, detail=False):
-        # atom_histogram = np.zeros(self.total_atoms)
+    def index(self, X, detail=False, k=3):
         atom_histogram_raw = np.zeros(self.total_atoms)
-        candidate_set = [] 
-        # all_idxs = np.array(self.node_dim_idxs).flatten()
+        candidate_set = []
+        top_candidates = []
 
         for i, nnu in enumerate(self.nnu_nodes):
             candidates, magnitudes = nnu.candidates(X[self.node_dim_idxs[i]])
@@ -558,6 +603,9 @@ class NNUForest(object):
 
             if self.dict_partition == 'partition':
                 candidates += i*self.num_atoms
+
+            sorted_candidated = candidates[np.argsort(np.abs(magnitudes))[::-1]]
+            top_candidates.extend(sorted_candidated[:k])
 
             candidate_set.extend(candidates)
             atom_histogram_raw[candidates] += magnitudes
@@ -569,17 +617,23 @@ class NNUForest(object):
         X = X - self.D_mean
 
         candidate_set = np.array(list(set(candidate_set)))
+        top_candidates_set = np.array(list(set(top_candidates)))
             
         if self.dim_partition == 'partition':
-            max_idx = np.argmax(np.abs(np.dot(self.D[candidate_set], X)))
+            magnitudes = np.abs(np.dot(self.D[top_candidates_set], X))
+            max_idx = np.argmax(magnitudes)
+            max_magnitude = magnitudes[max_idx]
 
             #map to correct atom idx
-            ret_idx = candidate_set[max_idx]
+            ret_idx = top_candidates_set[max_idx]
+            # candidate_set = top_candidates_set
         else:
-            ret_idx = np.argmax(np.abs(atom_histogram_raw))
+            magnitudes = np.abs(atom_histogram_raw)
+            ret_idx = np.argmax(magnitudes)
+            max_magnitude = magnitudes[ret_idx]
 
         if detail:
-            return ret_idx, len(candidate_set)
+            return ret_idx, max_magnitude, len(candidate_set)
         else:
             return ret_idx
 

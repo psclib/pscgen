@@ -120,12 +120,10 @@ def predict_chi2(tr_x, tr_y, t_x, t_y, batch=False, verbose=False):
 
 def norm_shape(shape):
     '''
-    Normalize numpy array shapes so they're always expressed as a tuple, 
+    Normalize numpy array shapes so they're always expressed as a tuple,
     even for one-dimensional shapes.
-     
     Parameters
         shape - an int, or a tuple of ints
-     
     Returns
         a shape tuple
     '''
@@ -135,7 +133,7 @@ def norm_shape(shape):
     except TypeError:
         # shape was not a number
         pass
- 
+
     try:
         t = tuple(shape)
         return t
@@ -144,17 +142,17 @@ def norm_shape(shape):
         pass
 
 
-def sliding_window(a,ws,ss = None,flatten = True):
+def sliding_window(a, ws, ss=None, flatten=True):
     '''
     Return a sliding window over a in any number of dimensions
     Parameters:
     a - an n-dimensional numpy array
-    ws - an int (a is 1D) or tuple (a is 2D or greater) representing the size 
+    ws - an int (a is 1D) or tuple (a is 2D or greater) representing the size
     of each dimension of the window
-    ss - an int (a is 1D) or tuple (a is 2D or greater) representing the 
+    ss - an int (a is 1D) or tuple (a is 2D or greater) representing the
     amount to slide the window in each dimension. If not specified, it
     defaults to ws.
-    flatten - if True, all slices are flattened, otherwise, there is an 
+    flatten - if True, all slices are flattened, otherwise, there is an
     extra dimension for each dimension of the input.
 
     Returns
@@ -167,7 +165,7 @@ def sliding_window(a,ws,ss = None,flatten = True):
     ws = norm_shape(ws)
     ss = norm_shape(ss)
 
-    # convert ws, ss, and a.shape to numpy arrays so that we can do math in every 
+    # convert ws, ss, and a.shape to numpy arrays so that we can do math in every
     # dimension at once.
     ws = np.array(ws)
     ss = np.array(ss)

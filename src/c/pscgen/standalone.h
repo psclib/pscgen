@@ -1,4 +1,3 @@
-
 #define SQRT_MAGIC_F 0x5f3759df
 word_t ATOM_IDXS[MAX_ATOMS/32 + 1] = {0};
 int CANDIDATE_SET[MAX_ALPHA*MAX_BETA] = {0};
@@ -18,7 +17,7 @@ FLOAT_T  sqrt_(const FLOAT_T x)
 
   const FLOAT_T xux = x*u.x;
 
-  return xux*(1.5f - .5f*xux*u.x);// Newton step, repeating increases accuracy 
+  return xux*(1.5f - .5f*xux*u.x);// Newton step, repeating increases accuracy
 }
 
 FLOAT_T fabs_(FLOAT_T n)
@@ -40,12 +39,12 @@ int boffset(int b)
 }
 
 void set_bit(word_t *data, int b)
-{ 
-    data[bindex(b)] |= 1 << (boffset(b)); 
+{
+    data[bindex(b)] |= 1 << (boffset(b));
 }
 
 int get_bit(word_t *data, int b)
-{ 
+{
     return data[bindex(b)] & (1 << (boffset(b)));
 }
 
@@ -94,7 +93,7 @@ FLOAT_T d_dot(FLOAT_T *X, FLOAT_T *Y, int N)
     FLOAT_T ret = 0;
 
     for(i = 0; i < N; i++) {
-        ret += X[i] * Y[i]; 
+        ret += X[i] * Y[i];
     }
 
     return ret;
@@ -161,7 +160,7 @@ void bag_of_words(int *X, FLOAT_T *bag_X, int N, int max_len)
 {
     int i;
     FLOAT_T l2_norm;
-    
+
     for(i = 0; i < max_len; i++) {
         bag_X[i] = 0.0;
     }
@@ -213,9 +212,9 @@ float nano_to_float(uint8_t y)
     *f = *f - 1;
 
     if(s == 0){
-        return *f;    
+        return *f;
     }else{
-        return -*f;    
+        return -*f;
     }
 }
 
@@ -254,9 +253,9 @@ float micro_to_float(uint8_t y)
     *f = *f - 1;
 
     if(s == 0){
-        return *f;    
+        return *f;
     }else{
-        return -*f;    
+        return -*f;
     }
 }
 
@@ -298,10 +297,10 @@ float mini_to_float(uint8_t y)
     *f = *f - 1;
 
     if(s == 0) {
-      return *f;    
+      return *f;
     }
     else{
-      return -*f;    
+      return -*f;
     }
 }
 
@@ -456,11 +455,11 @@ void storage_to_float(float *i, uint16_t y, Storage_Scheme s)
         case nano:
             i[0] = nano_to_float(y);
             break;
-        case two_mini: 
+        case two_mini:
             i[0] = mini_to_float(y >> 8);
             i[1] = mini_to_float(y);
             break;
-        case four_micro: 
+        case four_micro:
             i[0] = micro_to_float(y >> 12);
             i[1] = micro_to_float(y >> 8);
             i[2] = micro_to_float(y >> 4);
@@ -517,7 +516,7 @@ void atom_lookup(NNUDictionary *dict, FLOAT_T *x, word_t *atom_idxs,
     int i, j, table_idx, table_key, shift_amount, shift_bits;
     uint16_t *beta_neighbors;
     *N = 0;
-    
+
     for(i = 0; i < alpha; i++) {
         table_key = 0;
         for(j = 0; j < s_stride; j++) {
@@ -554,7 +553,7 @@ int nnu(NNUDictionary *dict, FLOAT_T *X, int X_rows)
     subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
     dmm_prod(dict->Vt, X, VX, dict->alpha*S_STRIDE, dict->D_rows, X_rows,
-             X_cols); 
+             X_cols);
     atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*S_STRIDE), ATOM_IDXS,
                 CANDIDATE_SET, &N, dict->alpha, dict->beta, S_STRIDE);
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, D,
@@ -578,7 +577,7 @@ int nnu_pca(NNUDictionary *dict, FLOAT_T *X, int X_rows)
     subtract_colwise(X, dict->D_mean, X_rows, X_cols);
 
     dmm_prod(dict->Vt, X, VX, dict->alpha*S_STRIDE, dict->D_rows, X_rows,
-                  X_cols); 
+                  X_cols);
     atom_lookup(dict, d_viewcol(VX, 0, dict->alpha*S_STRIDE), ATOM_IDXS,
                 CANDIDATE_SET, &N, dict->alpha, dict->beta, S_STRIDE);
     compute_max_dot_set(&max_coeff, &max_idx, &total_ab, dict->VD,
@@ -653,7 +652,7 @@ int nnu_classify()
 {
     int i, idx, result;
     FLOAT_T l2_norm;
-        
+
     l2_norm = norm(PIPELINE.bag_X, PIPELINE.nnu->D_cols);
     for(i = 0; i < PIPELINE.nnu->D_cols; i++) {
         PIPELINE.bag_X[i] /= l2_norm;

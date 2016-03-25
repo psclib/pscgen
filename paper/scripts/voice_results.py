@@ -27,6 +27,7 @@ args = json.loads(sys.argv[1])
 storage = pscgen.name_to_storage(args['storage'])
 comp_scheme = pscgen.name_to_comp_scheme('pca')
 X, Y, X_flat = util.wav_to_np(args['tr_folder_path'], window_size=50)
+assert False
 num_folds = 5
 acc = 0.0
 max_atoms = 1000
@@ -107,7 +108,7 @@ linewidth = 2
 
 fig_name = 'voice_embed'
 fig = plt.figure()
-ax = fig.add_subplot(1,1,1) 
+ax = fig.add_subplot(1,1,1)
 max_x = num_ops(Ns[-1], ws) / 1000.
 
 for enc_t in ['nns', 'nnu', 'nnu_pca']:
@@ -143,7 +144,7 @@ plt.clf()
 
 
 fig = plt.figure()
-ax = fig.add_subplot(1,1,1) 
+ax = fig.add_subplot(1,1,1)
 gamma = 256
 precision = 4
 
@@ -191,7 +192,7 @@ device_rt = {'nns': nns_runtimes, 'nnu': nnu_runtimes,
              'nnu_pca': nnu_pca_runtimes}
 max_x = device_rt['nns'][-1] / 1000000.
 fig = plt.figure()
-ax = fig.add_subplot(1,1,1) 
+ax = fig.add_subplot(1,1,1)
 
 for enc_t in ['nns', 'nnu', 'nnu_pca']:
     rt = [r/1000000. for r in device_rt[enc_t]]
@@ -213,7 +214,7 @@ plt.savefig('../figures/' + fig_name + '_runtime.pdf')
 plt.clf()
 
 fig = plt.figure()
-ax = fig.add_subplot(1,1,1) 
+ax = fig.add_subplot(1,1,1)
 
 for enc_t in ['nns', 'nnu', 'nnu_pca']:
     num_operations = []

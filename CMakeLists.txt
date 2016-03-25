@@ -16,7 +16,7 @@ ENDIF()
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
 #option(BUILD_MATLAB_BINDINGS "Build Matlab bindings" ON)
 #option(BUILD_EXAMPLES "Build examples" ON)
-option(BUILD_TESTS "Build tests" ON)
+#option(BUILD_TESTS "Build tests" ON)
 #option(BUILD_DOC "Build documentation" ON)
 
 add_subdirectory(src)
